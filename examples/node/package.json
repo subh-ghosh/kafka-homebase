@@ -1,0 +1,12 @@
+{
+    "name": "personal-kafka-node-example",
+    "private": true,
+    "type": "module",
+    "dependencies": {
+        "kafkajs": "^2.2.4"
+    },
+    "scripts": {
+        "produce": "node producer.mjs",
+        "consume": "node consumer.mjs"
+    }
+}

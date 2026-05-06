@@ -1,0 +1,21 @@
+.DS_Store
+*.log
+*.tmp
+*.swp
+*.swo
+__pycache__/
+.venv/
+node_modules/
+examples/java/target/
+
+# Secrets / generated certs
+secrets/
+*.p12
+*.jks
+*.pem
+*.key
+*.crt
+
+# Local env
+.env
+.env.*

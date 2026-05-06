@@ -1,0 +1,37 @@
+# Public secure config: TLS + SASL/SCRAM for clients
+process.roles=broker,controller
+node.id=1
+
+controller.listener.names=CONTROLLER
+listeners=SASL_SSL://0.0.0.0:9092,CONTROLLER://127.0.0.1:9093,INTERNAL://127.0.0.1:9094
+advertised.listeners=SASL_SSL://__PUBLIC_HOST__:9092
+listener.security.protocol.map=SASL_SSL:SASL_SSL,CONTROLLER:PLAINTEXT,INTERNAL:PLAINTEXT
+inter.broker.listener.name=INTERNAL
+
+log.dirs=/var/lib/kafka/logs
+num.partitions=3
+
+# KRaft quorum
+controller.quorum.voters=1@127.0.0.1:9093
+
+# TLS
+ssl.keystore.type=PKCS12
+ssl.keystore.location=/etc/kafka/secrets/kafka.server.p12
+ssl.keystore.password=__KEYSTORE_PASSWORD__
+ssl.key.password=__KEY_PASSWORD__
+ssl.truststore.type=PKCS12
+ssl.truststore.location=/etc/kafka/secrets/kafka.truststore.p12
+ssl.truststore.password=__TRUSTSTORE_PASSWORD__
+
+# SASL/SCRAM
+sasl.enabled.mechanisms=SCRAM-SHA-512
+listener.name.sasl_ssl.sasl.enabled.mechanisms=SCRAM-SHA-512
+
+# Authorization (ACLs)
+authorizer.class.name=org.apache.kafka.metadata.authorizer.StandardAuthorizer
+allow.everyone.if.no.acl.found=false
+super.users=User:admin
+
+# Safety defaults
+auto.create.topics.enable=false
+message.max.bytes=1048576

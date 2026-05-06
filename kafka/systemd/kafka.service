@@ -1,0 +1,18 @@
+[Unit]
+Description=Apache Kafka (KRaft)
+After=network.target
+
+[Service]
+Type=simple
+User=kafka
+Group=kafka
+Environment="JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64"
+Environment="KAFKA_HEAP_OPTS=-Xms512m -Xmx1536m"
+ExecStart=/opt/kafka/bin/kafka-server-start.sh /etc/kafka/server.properties
+ExecStop=/opt/kafka/bin/kafka-server-stop.sh
+Restart=on-failure
+RestartSec=5
+LimitNOFILE=100000
+
+[Install]
+WantedBy=multi-user.target
