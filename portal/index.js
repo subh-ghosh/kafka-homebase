@@ -28,10 +28,10 @@ const ADMIN_PASS = process.env.ADMIN_PASS || 'Zxcasq481062@';
 // Queue to handle heavy shell operations concurrently
 const shellQueue = new PQueue({ concurrency: 2 });
 
-// Native Kafka Client — connects locally (Kafka runs as PLAINTEXT internally)
+// Native Kafka Client — connects via INTERNAL PLAINTEXT listener (127.0.0.1:9094)
 const kafkaClient = new Kafka({
     clientId: 'portal-admin',
-    brokers: ['localhost:9092'],
+    brokers: ['127.0.0.1:9094'],
 });
 
 const generatePassword = (length) => {
