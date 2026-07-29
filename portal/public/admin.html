@@ -91,6 +91,22 @@
                 </div>
             </div>
 
+            <h3 style="margin-bottom: 1rem; color: #fff; margin-top: 1rem;">Server Health</h3>
+            <div class="stats-grid" style="grid-template-columns: repeat(3, 1fr);">
+                <div class="stat-card">
+                    <div>CPU Load (1m, 5m, 15m)</div>
+                    <div class="stat-value" id="stat-cpu" style="font-size: 1.2rem; margin-top: 0.5rem; color: #a5d6ff;">-</div>
+                </div>
+                <div class="stat-card">
+                    <div>Total Memory</div>
+                    <div class="stat-value" id="stat-mem-total" style="font-size: 1.5rem; margin-top: 0.5rem; color: #a5d6ff;">-</div>
+                </div>
+                <div class="stat-card">
+                    <div>Free Memory</div>
+                    <div class="stat-value" id="stat-mem-free" style="font-size: 1.5rem; margin-top: 0.5rem; color: #2ed573;">-</div>
+                </div>
+            </div>
+
             <h3 style="margin-bottom: 1rem; color: #fff;">Registered Developers</h3>
             <div style="overflow-x: auto;">
                 <table>
@@ -140,6 +156,27 @@
                 
                 document.getElementById('stat-total').innerText = data.total_users;
                 document.getElementById('stat-max').innerText = data.max_users;
+
+                fetch('/api/admin/health', { headers: { 'Authorization': `Basic ${authToken}` } })
+                    .then(r => r.json())
+                    .then(health => {
+                        if(health.success) {
+                            document.getElementById('stat-cpu').innerText = health.cpu_load.map(l => l.toFixed(2)).join(', ');
+                            document.getElementById('stat-mem-total').innerText = health.total_mem_mb + ' MB';
+                            
+                            const freeMemEl = document.getElementById('stat-mem-free');
+                            freeMemEl.innerText = health.free_mem_mb + ' MB';
+                            
+                            const memPercent = health.free_mem_mb / health.total_mem_mb;
+                            if (memPercent < 0.1) {
+                                freeMemEl.style.color = '#ff4757'; // red
+                            } else if (memPercent < 0.3) {
+                                freeMemEl.style.color = '#ffa502'; // orange
+                            } else {
+                                freeMemEl.style.color = '#2ed573'; // green
+                            }
+                        }
+                    }).catch(console.error);
 
                 const tbody = document.getElementById('users-tbody');
                 tbody.innerHTML = '';

@@ -82,10 +82,16 @@
     </style>
 </head>
 <body>
-    <a href="/admin.html" style="position: absolute; top: 1.5rem; right: 1.5rem; color: rgba(255,255,255,0.5); text-decoration: none; font-size: 0.9rem; display: flex; align-items: center; gap: 0.5rem; z-index: 10; padding: 0.5rem 1rem; border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; background: rgba(0,0,0,0.2); transition: all 0.2s;" onmouseover="this.style.color='#fff'; this.style.borderColor='rgba(255,255,255,0.3)';" onmouseout="this.style.color='rgba(255,255,255,0.5)'; this.style.borderColor='rgba(255,255,255,0.1)';">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
-        Admin Login
-    </a>
+    <div style="position: absolute; top: 1.5rem; right: 1.5rem; display: flex; gap: 1rem; z-index: 10;">
+        <a id="logout-btn" href="#" style="display: none; color: rgba(255,255,255,0.5); text-decoration: none; font-size: 0.9rem; align-items: center; gap: 0.5rem; padding: 0.5rem 1rem; border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; background: rgba(0,0,0,0.2); transition: all 0.2s;" onmouseover="this.style.color='#fff'; this.style.borderColor='rgba(255,255,255,0.3)';" onmouseout="this.style.color='rgba(255,255,255,0.5)'; this.style.borderColor='rgba(255,255,255,0.1)';">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"></path></svg>
+            Log Out
+        </a>
+        <a href="/admin.html" style="color: rgba(255,255,255,0.5); text-decoration: none; font-size: 0.9rem; display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem 1rem; border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; background: rgba(0,0,0,0.2); transition: all 0.2s;" onmouseover="this.style.color='#fff'; this.style.borderColor='rgba(255,255,255,0.3)';" onmouseout="this.style.color='rgba(255,255,255,0.5)'; this.style.borderColor='rgba(255,255,255,0.1)';">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+            Admin Login
+        </a>
+    </div>
     
     <div class="background-animation">
         <div class="glow-orb red"></div>
@@ -310,7 +316,12 @@ producer.close();</code></pre>
     <!-- Data Modal -->
     <div id="data-modal" class="modal">
         <div class="modal-content" style="max-width: 600px; width: 100%;">
-            <h3 id="data-modal-title">Topic Data</h3>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                <h3 id="data-modal-title" style="margin-bottom: 0;">Topic Data</h3>
+                <label style="display: flex; align-items: center; gap: 0.5rem; color: #a5d6ff; font-size: 0.85rem; cursor: pointer;">
+                    <input type="checkbox" id="auto-refresh-toggle"> Auto-Refresh (2s)
+                </label>
+            </div>
             <p style="margin-bottom: 1rem; font-size: 0.85rem; color: #aaa;">Showing latest 20 messages.</p>
             <div id="data-modal-content" style="background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); padding: 1rem; border-radius: 8px; text-align: left; max-height: 300px; overflow-y: auto; font-family: monospace; font-size: 0.9rem; color: #a5d6ff; white-space: pre-wrap; margin-bottom: 1.5rem;">
                 Loading...
@@ -610,7 +621,15 @@ producer.close();</code></pre>
 
         document.getElementById('consumers-tab-btn').addEventListener('click', loadConsumerGroups);
 
+        // Show logout button if logged in
+        const showLogout = () => {
+            document.getElementById('logout-btn').style.display = 'flex';
+        };
+
         const populateDashboard = (data) => {
+            document.getElementById('setup-card').classList.add('hidden');
+            document.getElementById('result-card').classList.remove('hidden');
+            showLogout();
             document.getElementById('res-username').innerText = data.username;
             document.getElementById('res-password').innerText = data.password;
             document.getElementById('res-topic').innerText = data.topic;
@@ -695,8 +714,9 @@ producer.close();</code></pre>
                 if (data.exists) {
                     populateDashboard(data);
                 } else {
-                    loadingCard.classList.add('hidden');
-                    setupCard.classList.remove('hidden');
+                    document.getElementById('loading-card').classList.add('hidden');
+                    document.getElementById('setup-card').classList.remove('hidden');
+                    showLogout();
                 }
             })
             .catch(err => {
@@ -843,6 +863,44 @@ producer.close();</code></pre>
                 btn.innerText = 'Yes, Delete Everything';
                 btn.disabled = false;
             }
+        });
+
+        document.getElementById('logout-btn').addEventListener('click', (e) => {
+            e.preventDefault();
+            window.location.href = window.location.pathname;
+        });
+
+        // Auto-refresh logic
+        let autoRefreshInterval = null;
+        const autoRefreshToggle = document.getElementById('auto-refresh-toggle');
+        
+        autoRefreshToggle.addEventListener('change', (e) => {
+            if (e.target.checked) {
+                const topic = document.getElementById('data-modal-title').innerText.replace('Data: ', '');
+                autoRefreshInterval = setInterval(() => {
+                    const dataContent = document.getElementById('data-modal-content');
+                    fetch(`/api/topics/${topic}/data`, {
+                        headers: { 'Authorization': `Bearer ${currentAccessToken}` }
+                    }).then(res => res.json()).then(data => {
+                        if (data.success) {
+                            if (data.data.length === 0) {
+                                dataContent.innerText = "No messages found yet. Try producing some data!";
+                            } else {
+                                dataContent.innerText = data.data.join('\n');
+                            }
+                        }
+                    }).catch(console.error);
+                }, 2000);
+            } else {
+                clearInterval(autoRefreshInterval);
+            }
+        });
+
+        // Ensure interval is cleared when modal is closed
+        const originalCloseDataModal = document.getElementById('close-data-modal').onclick;
+        document.getElementById('close-data-modal').addEventListener('click', () => {
+            clearInterval(autoRefreshInterval);
+            autoRefreshToggle.checked = false;
         });
     </script>
 </body>
