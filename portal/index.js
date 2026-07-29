@@ -24,6 +24,9 @@ const GITHUB_CLIENT_ID = process.env.GITHUB_CLIENT_ID || '';
 const GITHUB_CLIENT_SECRET = process.env.GITHUB_CLIENT_SECRET || '';
 const ADMIN_USER = process.env.ADMIN_USER || 'admin';
 const ADMIN_PASS = process.env.ADMIN_PASS || 'Zxcasq481062@';
+// Kafka broker SASL credentials (separate from portal admin login)
+const KAFKA_ADMIN_USER = process.env.KAFKA_ADMIN_USER || 'admin';
+const KAFKA_ADMIN_PASS = process.env.KAFKA_ADMIN_PASS || 'admin';
 
 // Queue to handle heavy shell operations concurrently
 const shellQueue = new PQueue({ concurrency: 2 });
@@ -35,8 +38,8 @@ const kafkaClient = new Kafka({
     ssl: { rejectUnauthorized: false },
     sasl: {
         mechanism: 'scram-sha-512',
-        username: ADMIN_USER,
-        password: ADMIN_PASS
+        username: KAFKA_ADMIN_USER,
+        password: KAFKA_ADMIN_PASS
     }
 });
 
