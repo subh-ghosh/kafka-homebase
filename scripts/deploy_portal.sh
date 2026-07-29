@@ -28,6 +28,8 @@ After=network.target
 Environment=PORT=80
 Environment=GITHUB_CLIENT_ID=$GITHUB_CLIENT_ID
 Environment=GITHUB_CLIENT_SECRET=$GITHUB_CLIENT_SECRET
+Environment=ADMIN_USER=$ADMIN_USER
+Environment=ADMIN_PASS=$ADMIN_PASS
 Type=simple
 User=root
 WorkingDirectory=/opt/portal

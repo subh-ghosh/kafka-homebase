@@ -19,12 +19,19 @@ const DB_FILE = path.join(__dirname, 'db.json');
 // THESE MUST BE SET BEFORE RUNNING
 const GITHUB_CLIENT_ID = process.env.GITHUB_CLIENT_ID || '';
 const GITHUB_CLIENT_SECRET = process.env.GITHUB_CLIENT_SECRET || '';
+const ADMIN_USER = process.env.ADMIN_USER || 'admin';
+const ADMIN_PASS = process.env.ADMIN_PASS || 'Zxcasq481062@';
 
 // Initialize database
 if (!fs.existsSync(DB_FILE)) {
-    // we use githubIds instead of ips now
-    fs.writeFileSync(DB_FILE, JSON.stringify({ total_users: 0, users: [], githubIds: [] }));
+    fs.writeFileSync(DB_FILE, JSON.stringify({ total_users: 0, users: [], githubIds: [], user_mappings: {} }));
 }
+
+// Ensure user_mappings exists in older db versions
+const ensureDbSchema = (db) => {
+    if (!db.user_mappings) db.user_mappings = {};
+    return db;
+};
 
 // Endpoint for frontend to get the Client ID to redirect users to GitHub
 app.get('/api/config', (req, res) => {
@@ -44,6 +51,9 @@ const runCommand = (command) => {
     });
 };
 
+// -----------------------------------------------------
+// PUBLIC REGISTRATION ROUTE
+// -----------------------------------------------------
 app.post('/api/register', async (req, res) => {
     const { username, code } = req.body;
 
@@ -80,19 +90,21 @@ app.post('/api/register', async (req, res) => {
 
     // 2. Fetch GitHub User Profile
     let githubId = null;
+    let githubHandle = null;
     try {
         const userRes = await axios.get('https://api.github.com/user', {
             headers: { Authorization: `Bearer ${accessToken}` }
         });
         githubId = userRes.data.id.toString();
+        githubHandle = userRes.data.login;
     } catch (err) {
         return res.status(500).json({ error: 'Failed to fetch GitHub profile.' });
     }
 
     // 3. Global Abuse Protection Logic
-    const db = JSON.parse(fs.readFileSync(DB_FILE));
+    let db = JSON.parse(fs.readFileSync(DB_FILE));
+    db = ensureDbSchema(db);
     
-    // Check if this GitHub human has already registered FOREVER
     if (db.githubIds && db.githubIds.includes(githubId)) {
         return res.status(403).json({ error: 'Your GitHub account has already registered a Kafka account. Only one account per person is allowed.' });
     }
@@ -121,11 +133,18 @@ app.post('/api/register', async (req, res) => {
             console.log(`[DRY RUN - Windows local] Created user ${username} with topic ${topicName} for GitHub ID ${githubId}`);
         }
 
-        // Save to DB to track global limits and permanent GitHub IDs
+        // Save to DB
         db.total_users += 1;
         db.users.push(username);
         if (!db.githubIds) db.githubIds = [];
         db.githubIds.push(githubId);
+        
+        db.user_mappings[username] = {
+            githubId: githubId,
+            githubHandle: githubHandle,
+            created_at: new Date().toISOString()
+        };
+
         fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2));
 
         res.json({
@@ -139,6 +158,78 @@ app.post('/api/register', async (req, res) => {
     } catch (err) {
         console.error("Failed to provision user:", err);
         res.status(500).json({ error: 'Internal server error while provisioning Kafka resources.' });
+    }
+});
+
+// -----------------------------------------------------
+// ADMIN ROUTES
+// -----------------------------------------------------
+const adminAuth = (req, res, next) => {
+    const authHeader = req.headers['authorization'];
+    if (!authHeader) return res.status(401).json({ error: 'Unauthorized' });
+    
+    const [user, pass] = Buffer.from(authHeader.split(' ')[1], 'base64').toString().split(':');
+    if (user === ADMIN_USER && pass === ADMIN_PASS) {
+        return next();
+    }
+    return res.status(401).json({ error: 'Invalid admin credentials' });
+};
+
+app.post('/api/admin/login', adminAuth, (req, res) => {
+    res.json({ success: true });
+});
+
+app.get('/api/admin/users', adminAuth, (req, res) => {
+    let db = JSON.parse(fs.readFileSync(DB_FILE));
+    db = ensureDbSchema(db);
+    res.json({
+        total_users: db.total_users,
+        max_users: MAX_GLOBAL_USERS,
+        users: db.user_mappings || {}
+    });
+});
+
+app.delete('/api/admin/users/:username', adminAuth, async (req, res) => {
+    const username = req.params.username;
+    
+    let db = JSON.parse(fs.readFileSync(DB_FILE));
+    db = ensureDbSchema(db);
+
+    if (!db.users.includes(username)) {
+        return res.status(404).json({ error: 'User not found in DB.' });
+    }
+
+    try {
+        const adminProps = '/etc/kafka/admin.properties';
+        if (fs.existsSync('/opt/kafka/bin/kafka-configs.sh')) {
+            // Delete SCRAM credentials
+            await runCommand(`/opt/kafka/bin/kafka-configs.sh --bootstrap-server 127.0.0.1:9092 --command-config ${adminProps} --alter --delete-config "SCRAM-SHA-512" --entity-type users --entity-name ${username}`);
+            // Delete Topic
+            await runCommand(`/opt/kafka/bin/kafka-topics.sh --bootstrap-server 127.0.0.1:9092 --command-config ${adminProps} --delete --topic "${username}.events"`);
+            // Delete ACLs (Topic)
+            await runCommand(`/opt/kafka/bin/kafka-acls.sh --bootstrap-server 127.0.0.1:9092 --command-config ${adminProps} --remove --allow-principal "User:${username}" --operation Read --operation Write --operation Describe --operation Create --topic "${username}." --resource-pattern-type prefixed --force`);
+            // Delete ACLs (Group)
+            await runCommand(`/opt/kafka/bin/kafka-acls.sh --bootstrap-server 127.0.0.1:9092 --command-config ${adminProps} --remove --allow-principal "User:${username}" --operation Read --operation Describe --group "${username}" --resource-pattern-type prefixed --force`);
+        } else {
+            console.log(`[DRY RUN - Windows local] Deleted user ${username}`);
+        }
+
+        // Clean up DB
+        db.users = db.users.filter(u => u !== username);
+        
+        if (db.user_mappings[username]) {
+            const githubId = db.user_mappings[username].githubId;
+            db.githubIds = db.githubIds.filter(id => id !== githubId);
+            delete db.user_mappings[username];
+        }
+        
+        db.total_users -= 1;
+        fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2));
+
+        res.json({ success: true, message: `Successfully deleted user ${username}` });
+    } catch (err) {
+        console.error("Failed to delete user:", err);
+        res.status(500).json({ error: 'Failed to delete user from Kafka.' });
     }
 });
 

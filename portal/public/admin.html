@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kafka Admin Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <style>
+        .admin-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            padding-bottom: 1rem;
+        }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+        .stat-card {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 1.5rem;
+            text-align: center;
+        }
+        .stat-card h3 {
+            font-size: 0.9rem;
+            color: var(--text-muted);
+            margin-bottom: 0.5rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .stat-card .value {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: white;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 1rem;
+        }
+        th, td {
+            text-align: left;
+            padding: 1rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        th {
+            color: var(--text-muted);
+            font-weight: 600;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+        }
+        td {
+            color: #ddd;
+        }
+        .delete-btn {
+            background: rgba(255, 71, 87, 0.1);
+            color: #ff4757;
+            border: 1px solid rgba(255, 71, 87, 0.2);
+            padding: 0.4rem 0.8rem;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .delete-btn:hover {
+            background: #ff4757;
+            color: white;
+        }
+        .logout-btn {
+            background: transparent;
+            color: var(--text-muted);
+            border: 1px solid rgba(255,255,255,0.2);
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+        .logout-btn:hover {
+            color: white;
+            border-color: white;
+        }
+        .badge {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 0.2rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            font-family: monospace;
+        }
+    </style>
+</head>
+<body>
+    <div class="background-animation">
+        <div class="glow-orb red"></div>
+        <div class="glow-orb blue"></div>
+    </div>
+
+    <!-- Login Screen -->
+    <main id="login-section" class="container">
+        <div class="glass-card">
+            <h2 style="text-align: center; margin-bottom: 1.5rem;">Admin Login</h2>
+            <form id="login-form">
+                <div class="input-group">
+                    <label>Admin Username</label>
+                    <input type="text" id="admin-user" required>
+                </div>
+                <div class="input-group">
+                    <label>Admin Password</label>
+                    <input type="password" id="admin-pass" required>
+                </div>
+                <button type="submit" class="primary-btn">Login</button>
+            </form>
+            <div id="login-error" class="error"></div>
+        </div>
+    </main>
+
+    <!-- Dashboard Screen -->
+    <main id="dashboard-section" class="container hidden" style="max-width: 800px;">
+        <div class="glass-card">
+            <div class="admin-header">
+                <h2>Admin Dashboard</h2>
+                <button id="logout-btn" class="logout-btn">Logout</button>
+            </div>
+
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <h3>Active Users</h3>
+                    <div class="value" id="stat-active">0</div>
+                </div>
+                <div class="stat-card">
+                    <h3>Capacity Remaining</h3>
+                    <div class="value" id="stat-capacity">50</div>
+                </div>
+            </div>
+
+            <h3 style="margin-bottom: 1rem;">Registered Accounts</h3>
+            <div style="overflow-x: auto;">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Username</th>
+                            <th>GitHub User</th>
+                            <th>Created</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="users-table-body">
+                        <!-- Populated via JS -->
+                    </tbody>
+                </table>
+            </div>
+            <div id="action-error" class="error"></div>
+        </div>
+    </main>
+
+    <script src="admin.js"></script>
+</body>
+</html>
