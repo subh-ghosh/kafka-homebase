@@ -9,12 +9,49 @@ const axios = require('axios');
 const os = require('os');
 const { default: PQueue } = require('p-queue');
 const { Kafka } = require('kafkajs');
+const rateLimit = require('express-rate-limit');
 const db = require('./db');
 
 const app = express();
 app.use(cors({ origin: process.env.ALLOWED_ORIGIN || 'https://kafka.subartaghosh.co.in' }));
 app.use(bodyParser.json({ limit: '16kb' }));
 app.use(express.static('public'));
+
+// ── Rate Limiters ────────────────────────────────────────
+// Tight limit on account creation (heavy: creates Kafka user + topic + ACLs)
+const registerLimiter = rateLimit({
+    windowMs: 60 * 60 * 1000,  // 1 hour
+    max: 5,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: 'Too many registration attempts. Try again in an hour.' }
+});
+// Moderate limit on credential mutation routes
+const mutationLimiter = rateLimit({
+    windowMs: 60 * 60 * 1000,  // 1 hour
+    max: 15,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: 'Too many requests. Try again in an hour.' }
+});
+// General API limit (covers topic reads, produce, consumer groups etc.)
+const apiLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,  // 15 minutes
+    max: 200,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: 'Too many requests. Please slow down.' }
+});
+// Admin routes limit
+const adminLimiter = rateLimit({
+    windowMs: 60 * 1000,       // 1 minute
+    max: 30,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: 'Admin rate limit exceeded.' }
+});
+// Apply general limiter to all /api routes
+app.use('/api/', apiLimiter);
 
 const PORT = process.env.PORT || 8080;
 const MAX_GLOBAL_USERS = 200;
@@ -99,9 +136,15 @@ const safeRunCommand = (command) => {
     });
 };
 
-// -----------------------------------------------------
-// PUBLIC ROUTES
-// -----------------------------------------------------
+// Prune expired token cache entries every 10 minutes
+setInterval(() => {
+    const now = Date.now();
+    for (const [token, data] of tokenCache.entries()) {
+        if (data.expiresAt <= now) tokenCache.delete(token);
+    }
+}, 10 * 60 * 1000);
+
+// ── PUBLIC ROUTES ────────────────────────────────────────
 
 // Helper for verifying access token — 5-min cache prevents hammering GitHub API
 const verifyUserHelper = async (req, res) => {
@@ -193,7 +236,7 @@ app.get('/api/user', async (req, res) => {
 });
 
 // Register new user
-app.post('/api/register', async (req, res) => {
+app.post('/api/register', registerLimiter, async (req, res) => {
     const { accessToken } = req.body;
     if (!accessToken) return res.status(400).json({ error: 'Missing access token.' });
 
@@ -252,7 +295,7 @@ app.post('/api/register', async (req, res) => {
 });
 
 // Regenerate Credentials
-app.post('/api/regenerate', async (req, res) => {
+app.post('/api/regenerate', mutationLimiter, async (req, res) => {
     const { accessToken } = req.body;
     if (!accessToken) return res.status(400).json({ error: 'Missing access token.' });
 
@@ -287,7 +330,7 @@ app.post('/api/regenerate', async (req, res) => {
 });
 
 // Delete Account
-app.post('/api/delete_account', async (req, res) => {
+app.post('/api/delete_account', mutationLimiter, async (req, res) => {
     const { accessToken } = req.body;
     if (!accessToken) return res.status(400).json({ error: 'Missing access token.' });
 
@@ -530,11 +573,11 @@ const adminAuth = (req, res, next) => {
     return res.status(401).json({ error: 'Invalid admin credentials' });
 };
 
-app.post('/api/admin/login', adminAuth, (req, res) => {
+app.post('/api/admin/login', adminLimiter, adminAuth, (req, res) => {
     res.json({ success: true });
 });
 
-app.get('/api/admin/health', adminAuth, (req, res) => {
+app.get('/api/admin/health', adminLimiter, adminAuth, (req, res) => {
     const loadAvg = os.loadavg();
     const totalMem = os.totalmem();
     const freeMem = os.freemem();
@@ -682,3 +725,24 @@ const checkDiskUsage = async () => {
 };
 
 setInterval(checkDiskUsage, 60000); // Check every minute
+
+// ── Graceful Shutdown ────────────────────────────────────
+const shutdown = async (signal) => {
+    console.log(`[Portal] ${signal} received — shutting down gracefully...`);
+    try {
+        if (_adminInstance) {
+            await _adminInstance.disconnect();
+            console.log('[Portal] Kafka admin disconnected.');
+        }
+        if (_producerInstance) {
+            await _producerInstance.disconnect();
+            console.log('[Portal] Kafka producer disconnected.');
+        }
+    } catch (err) {
+        console.error('[Portal] Error during shutdown cleanup:', err.message);
+    }
+    process.exit(0);
+};
+
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT',  () => shutdown('SIGINT'));
