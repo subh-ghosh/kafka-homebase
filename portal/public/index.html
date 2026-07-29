@@ -938,7 +938,7 @@ const loadTopics = async (username) => {
             const delBtn = document.createElement('button');
             delBtn.className = 'btn btn-sm btn-red';
             delBtn.textContent = 'Delete';
-            delBtn.addEventListener('click', () => deleteTopic(topic));
+            delBtn.addEventListener('click', () => deleteTopic(topic, delBtn));
 
             wrap.append(dataBtn, prodBtn, delBtn);
             actTd.appendChild(wrap);
@@ -979,16 +979,28 @@ $('create-topic-btn').addEventListener('click', async () => {
 
 $('refresh-topics-btn').addEventListener('click', () => loadTopics($('cred-username').innerText));
 
-const deleteTopic = async (topic) => {
-    if (!confirm(`Delete "${topic}"?\n\nThis permanently removes the topic and all its data.`)) return;
+const deleteTopic = async (topic, btn) => {
+    if (!btn._armed) {
+        btn._armed = true;
+        btn.textContent = '⚠️ Sure?';
+        btn._timer = setTimeout(() => {
+            btn._armed = false;
+            btn.textContent = 'Delete';
+        }, 3000);
+        return;
+    }
+    clearTimeout(btn._timer);
+    btn._armed = false;
+    btn.disabled = true;
+    btn.textContent = 'Deleting…';
     try {
         const res  = await fetch(`/api/topics/${topic}`, {
             method: 'DELETE', headers: { Authorization: `Bearer ${currentAccessToken}` }
         });
         const data = await res.json();
         if (data.success) { showToast('Topic deleted.'); loadTopics($('cred-username').innerText); }
-        else showToast('Error: ' + data.error, 3500);
-    } catch { showToast('Server error.', 3000); }
+        else { showToast('Error: ' + data.error, 3500); btn.disabled = false; btn.textContent = 'Delete'; }
+    } catch { showToast('Server error.', 3000); btn.disabled = false; btn.textContent = 'Delete'; }
 };
 
 // ── DATA VIEWER ────────────────────────────────────────
