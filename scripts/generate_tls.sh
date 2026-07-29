@@ -58,6 +58,9 @@ subjectAltName = @alt_names
 
 [ alt_names ]
 DNS.1 = ${HOSTNAME}
+DNS.2 = kafka.subartaghosh.co.in
+DNS.3 = 18.212.227.199
+IP.1 = 18.212.227.199
 EOF
 
 openssl genrsa -out "$SERVER_KEY" 2048

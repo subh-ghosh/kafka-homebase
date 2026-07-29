@@ -81,7 +81,7 @@
                 <div class="cred-item">
                     <span class="cred-label">Bootstrap Server</span>
                     <div class="cred-value-box">
-                        <code id="res-bootstrap"></code>
+                        <code id="res-bootstrap">broker.subartaghosh.co.in:9092</code>
                         <button class="copy-btn" data-copy="res-bootstrap">Copy</button>
                     </div>
                 </div>
@@ -125,7 +125,7 @@
 <pre><code>from confluent_kafka import Producer
 
 conf = {
-    'bootstrap.servers': '<span class="ins-boot"></span>',
+    'bootstrap.servers': 'broker.subartaghosh.co.in:9092',
     'security.protocol': 'SASL_SSL',
     'sasl.mechanisms': 'SCRAM-SHA-512',
     'sasl.username': '<span class="ins-user"></span>',
@@ -142,7 +142,7 @@ producer.flush()</code></pre>
 
 const kafka = new Kafka({
   clientId: 'my-app',
-  brokers: ['<span class="ins-boot"></span>'],
+  brokers: ['broker.subartaghosh.co.in:9092'],
   ssl: true,
   sasl: {
     mechanism: 'scram-sha-512',
@@ -161,7 +161,7 @@ await producer.send({
 
                 <div id="code-java" class="code-block hidden">
 <pre><code>Properties props = new Properties();
-props.put("bootstrap.servers", "<span class="ins-boot"></span>");
+props.put("bootstrap.servers", "broker.subartaghosh.co.in:9092");
 props.put("security.protocol", "SASL_SSL");
 props.put("sasl.mechanism", "SCRAM-SHA-512");
 props.put("sasl.jaas.config", 
