@@ -354,36 +354,61 @@ app.get('/api/topics/:topic/data', async (req, res) => {
     }
 
     try {
-        // Use admin kafkaClient to fetch offsets
+        // Fetch topic offsets to know where to seek
         const admin = kafkaClient.admin();
         await admin.connect();
         const offsets = await admin.fetchTopicOffsets(topic);
         await admin.disconnect();
 
-        // Admin consumer reads the topic
-        const consumer = kafkaClient.consumer({ groupId: `portal-viewer-${username}-${Date.now()}` });
+        const groupId = `portal-viewer-${username}-${Date.now()}`;
+        const consumer = kafkaClient.consumer({ groupId });
         await consumer.connect();
-        await consumer.subscribe({ topic, fromBeginning: false });
+        await consumer.subscribe({ topic, fromBeginning: true });
 
-        // Seek to end - 20 messages per partition
+        let data = [];
+        let didSeek = false;
+
+        // Calculate start offsets (last 20 messages)
+        const seekTargets = {};
         for (const p of offsets) {
             let start = parseInt(p.high) - 20;
             if (start < parseInt(p.low)) start = parseInt(p.low);
             if (start < 0) start = 0;
-            consumer.seek({ topic, partition: p.partition, offset: start.toString() });
+            seekTargets[p.partition] = { start: start.toString(), high: parseInt(p.high) };
         }
 
-        let data = [];
+        await new Promise((resolve, reject) => {
+            const timeout = setTimeout(async () => {
+                await consumer.disconnect();
+                resolve();
+            }, 2000);
 
-        await consumer.run({
-            eachMessage: async ({ message }) => {
-                data.push(message.value.toString());
-            },
+            consumer.run({
+                eachBatch: async ({ batch, resolveOffset, heartbeat, isRunning, isStale }) => {
+                    const { partition, messages } = batch;
+                    const target = seekTargets[partition];
+                    if (!target) return;
+
+                    if (!didSeek && target.start !== '0') {
+                        consumer.seek({ topic, partition, offset: target.start });
+                        didSeek = true;
+                        return;
+                    }
+
+                    for (const message of messages) {
+                        if (!isRunning() || isStale()) break;
+                        const offset = parseInt(message.offset);
+                        if (offset >= parseInt(target.start)) {
+                            data.push(message.value.toString());
+                        }
+                        resolveOffset(message.offset);
+                        await heartbeat();
+                    }
+                },
+            }).catch(err => {
+                if (!err.message?.includes('disconnected')) reject(err);
+            });
         });
-
-        // Wait to collect messages then disconnect
-        await new Promise(r => setTimeout(r, 1500));
-        await consumer.disconnect();
 
         res.json({ success: true, data: data.slice(-20) });
     } catch (err) {
@@ -391,6 +416,7 @@ app.get('/api/topics/:topic/data', async (req, res) => {
         res.status(500).json({ error: 'Failed to fetch topic data' });
     }
 });
+
 
 app.post('/api/topics/:topic/produce', async (req, res) => {
     const username = await verifyUserHelper(req, res);
