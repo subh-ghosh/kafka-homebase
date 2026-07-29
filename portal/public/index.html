@@ -353,7 +353,7 @@
 <!-- ── NAVBAR ──────────────────────────────────────────── -->
 <nav class="navbar">
     <div class="navbar-inner">
-        <a href="/" class="nav-logo">STREAM<span>BASE</span></a>
+        <a href="javascript:void(0)" onclick="currentUserData ? showHome() : location.href='/'" class="nav-logo">STREAM<span>BASE</span></a>
         <div class="nav-right" id="nav-right">
             <a href="/admin.html" style="color:#666;font-size:0.78rem;font-weight:700;text-decoration:none;letter-spacing:0.05em;">ADMIN ↗</a>
         </div>
@@ -821,15 +821,39 @@ const registerUser = async () => {
     }
 };
 
-// ── DASHBOARD ──────────────────────────────────────────
-const showDashboard = (data) => {
+let currentUserData = null;
+
+const showHome = () => {
+    $('login-section').classList.remove('hidden');
+    $('dashboard-section').classList.add('hidden');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    if (currentUserData) {
+        const ctaBtn = $('github-login-btn');
+        ctaBtn.innerHTML = `🚀 Go to Dashboard ➔`;
+        ctaBtn.onclick = (e) => {
+            e.preventDefault();
+            showDashboardView();
+        };
+    }
+};
+
+const showDashboardView = () => {
     $('login-section').classList.add('hidden');
     $('dashboard-section').classList.remove('hidden');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+};
+
+// ── DASHBOARD ──────────────────────────────────────────
+const showDashboard = (data) => {
+    currentUserData = data;
+    showDashboardView();
 
     // Nav
     $('nav-right').innerHTML = `
+        <button onclick="showHome()" class="btn btn-sm" style="margin-right:0.4rem;">🏠 Home</button>
+        <button onclick="showDashboardView()" class="btn btn-sm btn-yellow" style="margin-right:0.6rem;">📊 Dashboard</button>
         <span class="nav-user">${data.username}</span>
-        <button onclick="logout()" class="btn btn-sm btn-red" style="box-shadow:3px 3px 0 #8B0000;">Logout</button>
+        <button onclick="logout()" class="btn btn-sm btn-red" style="box-shadow:3px 3px 0 #8B0000;margin-left:0.5rem;">Logout</button>
     `;
 
     // Credentials
