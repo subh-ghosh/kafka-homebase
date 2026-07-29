@@ -13,7 +13,8 @@ const rateLimit = require('express-rate-limit');
 const db = require('./db');
 
 const app = express();
-app.use(cors({ origin: process.env.ALLOWED_ORIGIN || 'https://kafka.subartaghosh.co.in' }));
+app.set('trust proxy', 1); // Enable proxy trust for Cloudflare
+app.use(cors({ origin: process.env.ALLOWED_ORIGIN || '*' }));
 app.use(bodyParser.json({ limit: '16kb' }));
 app.use(express.static('public'));
 
@@ -21,18 +22,18 @@ app.use(express.static('public'));
 // Tight limit on account creation (heavy: creates Kafka user + topic + ACLs)
 const registerLimiter = rateLimit({
     windowMs: 60 * 60 * 1000,  // 1 hour
-    max: 5,
+    max: 10,
     standardHeaders: true,
     legacyHeaders: false,
     message: { error: 'Too many registration attempts. Try again in an hour.' }
 });
 // Moderate limit on credential mutation routes
 const mutationLimiter = rateLimit({
-    windowMs: 60 * 60 * 1000,  // 1 hour
-    max: 15,
+    windowMs: 15 * 60 * 1000,  // 15 minutes
+    max: 50,
     standardHeaders: true,
     legacyHeaders: false,
-    message: { error: 'Too many requests. Try again in an hour.' }
+    message: { error: 'Too many requests. Try again in a few minutes.' }
 });
 // General API limit (covers topic reads, produce, consumer groups etc.)
 const apiLimiter = rateLimit({
