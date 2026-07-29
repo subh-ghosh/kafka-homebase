@@ -125,10 +125,10 @@ app.post('/api/register', async (req, res) => {
         const adminProps = '/etc/kafka/admin.properties';
         
         if (fs.existsSync('/opt/kafka/bin/kafka-configs.sh')) {
-            await runCommand(`/opt/kafka/bin/kafka-configs.sh --bootstrap-server 127.0.0.1:9092 --command-config ${adminProps} --alter --add-config "SCRAM-SHA-512=[iterations=4096,password=${password}]" --entity-type users --entity-name ${username}`);
-            await runCommand(`/opt/kafka/bin/kafka-topics.sh --bootstrap-server 127.0.0.1:9092 --command-config ${adminProps} --create --if-not-exists --topic ${topicName} --partitions 3 --replication-factor 1`);
-            await runCommand(`/opt/kafka/bin/kafka-acls.sh --bootstrap-server 127.0.0.1:9092 --command-config ${adminProps} --add --allow-principal "User:${username}" --operation Read --operation Write --operation Describe --operation Create --topic "${username}." --resource-pattern-type prefixed`);
-            await runCommand(`/opt/kafka/bin/kafka-acls.sh --bootstrap-server 127.0.0.1:9092 --command-config ${adminProps} --add --allow-principal "User:${username}" --operation Read --operation Describe --group "${username}" --resource-pattern-type prefixed`);
+            await runCommand(`/opt/kafka/bin/kafka-configs.sh --bootstrap-server kafka.subartaghosh.co.in:9092 --command-config ${adminProps} --alter --add-config "SCRAM-SHA-512=[iterations=4096,password=${password}]" --entity-type users --entity-name ${username}`);
+            await runCommand(`/opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka.subartaghosh.co.in:9092 --command-config ${adminProps} --create --if-not-exists --topic ${topicName} --partitions 3 --replication-factor 1`);
+            await runCommand(`/opt/kafka/bin/kafka-acls.sh --bootstrap-server kafka.subartaghosh.co.in:9092 --command-config ${adminProps} --add --allow-principal "User:${username}" --operation Read --operation Write --operation Describe --operation Create --topic "${username}." --resource-pattern-type prefixed`);
+            await runCommand(`/opt/kafka/bin/kafka-acls.sh --bootstrap-server kafka.subartaghosh.co.in:9092 --command-config ${adminProps} --add --allow-principal "User:${username}" --operation Read --operation Describe --group "${username}" --resource-pattern-type prefixed`);
         } else {
             console.log(`[DRY RUN - Windows local] Created user ${username} with topic ${topicName} for GitHub ID ${githubId}`);
         }
@@ -203,13 +203,13 @@ app.delete('/api/admin/users/:username', adminAuth, async (req, res) => {
         const adminProps = '/etc/kafka/admin.properties';
         if (fs.existsSync('/opt/kafka/bin/kafka-configs.sh')) {
             // Delete SCRAM credentials
-            await runCommand(`/opt/kafka/bin/kafka-configs.sh --bootstrap-server 127.0.0.1:9092 --command-config ${adminProps} --alter --delete-config "SCRAM-SHA-512" --entity-type users --entity-name ${username}`);
+            await runCommand(`/opt/kafka/bin/kafka-configs.sh --bootstrap-server kafka.subartaghosh.co.in:9092 --command-config ${adminProps} --alter --delete-config "SCRAM-SHA-512" --entity-type users --entity-name ${username}`);
             // Delete Topic
-            await runCommand(`/opt/kafka/bin/kafka-topics.sh --bootstrap-server 127.0.0.1:9092 --command-config ${adminProps} --delete --topic "${username}.events"`);
+            await runCommand(`/opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka.subartaghosh.co.in:9092 --command-config ${adminProps} --delete --topic "${username}.events"`);
             // Delete ACLs (Topic)
-            await runCommand(`/opt/kafka/bin/kafka-acls.sh --bootstrap-server 127.0.0.1:9092 --command-config ${adminProps} --remove --allow-principal "User:${username}" --operation Read --operation Write --operation Describe --operation Create --topic "${username}." --resource-pattern-type prefixed --force`);
+            await runCommand(`/opt/kafka/bin/kafka-acls.sh --bootstrap-server kafka.subartaghosh.co.in:9092 --command-config ${adminProps} --remove --allow-principal "User:${username}" --operation Read --operation Write --operation Describe --operation Create --topic "${username}." --resource-pattern-type prefixed --force`);
             // Delete ACLs (Group)
-            await runCommand(`/opt/kafka/bin/kafka-acls.sh --bootstrap-server 127.0.0.1:9092 --command-config ${adminProps} --remove --allow-principal "User:${username}" --operation Read --operation Describe --group "${username}" --resource-pattern-type prefixed --force`);
+            await runCommand(`/opt/kafka/bin/kafka-acls.sh --bootstrap-server kafka.subartaghosh.co.in:9092 --command-config ${adminProps} --remove --allow-principal "User:${username}" --operation Read --operation Describe --group "${username}" --resource-pattern-type prefixed --force`);
         } else {
             console.log(`[DRY RUN - Windows local] Deleted user ${username}`);
         }
