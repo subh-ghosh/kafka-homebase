@@ -1,12 +1,12 @@
 # Personal Kafka (self-hosted)
 
-Run your **own** Kafka broker on a small cloud VM (recommended: **Oracle Cloud Always Free**) and use it from any of your Python / Node / Java projects.
+Run your **own** Kafka broker on a small cloud VM (recommended: **Oracle Cloud Always Free** or **AWS EC2 Free Tier**) and use it from any of your Python / Node / Java projects.
 
 This repo targets a **single-node** Kafka setup in **KRaft mode** (no ZooKeeper). It’s meant for learning and small projects.
 
 ## What you get
 
-- A repeatable install for an Oracle/Ubuntu VM (systemd service)
+- A repeatable install for an Ubuntu VM (systemd service)
 - A bootstrap → secure setup flow (so you don’t expose an open broker)
 - Public endpoint with **TLS + SASL/SCRAM** (username/password)
 - A provisioning script to onboard new apps (create user + topics + ACLs)
@@ -21,7 +21,7 @@ This repo targets a **single-node** Kafka setup in **KRaft mode** (no ZooKeeper)
 
 ## Quick start (high level)
 
-1. Create an Oracle Always Free VM (Ubuntu 22.04 is easiest).
+1. Create a cloud VM running Ubuntu 22.04 (e.g., Oracle Always Free or AWS EC2 t2.micro).
 2. Clone this repo on the VM.
 3. Run the installer script.
 4. Run the bootstrap script to initialize KRaft storage.
@@ -29,10 +29,13 @@ This repo targets a **single-node** Kafka setup in **KRaft mode** (no ZooKeeper)
 6. Generate TLS certs and switch to the secure config.
 7. Write `admin.properties` and onboard app users/topics.
 
-Detailed steps: see docs/oracle-ubuntu.md
+Detailed steps: see [docs/oracle-ubuntu.md](file:///h:/Kafka/docs/oracle-ubuntu.md) or [docs/aws-ubuntu.md](file:///h:/Kafka/docs/aws-ubuntu.md)
+
+If you encounter issues during setup, you can run the [repair.sh](file:///h:/Kafka/repair.sh) script to fully reset and re-initialize the installation securely.
 
 ## Folder map
 
+- `docs/usage-guide.md` — **Start here:** code examples for Python, Node, and Java
 - `docs/` — step-by-step VM setup
 - `kafka/` — Kafka configs + systemd unit template
 - `scripts/` — install/bootstrap/provision scripts

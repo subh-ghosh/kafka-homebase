@@ -32,7 +32,7 @@ sed \
 
 cp -f "$TMP" /etc/kafka/server.properties
 chmod 640 /etc/kafka/server.properties
-chown root:root /etc/kafka/server.properties
+chown kafka:kafka /etc/kafka/server.properties
 
 systemctl restart kafka.service
 sleep 2

@@ -19,3 +19,6 @@ secrets/
 # Local env
 .env
 .env.*
+
+# Local properties
+client.properties

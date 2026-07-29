@@ -26,7 +26,7 @@ if [[ ! -d /opt/kafka ]]; then
   trap 'rm -rf "$tmpdir"' EXIT
 
   tgz="kafka_${SCALA_VERSION}-${KAFKA_VERSION}.tgz"
-  url="https://downloads.apache.org/kafka/${KAFKA_VERSION}/${tgz}"
+  url="https://archive.apache.org/dist/kafka/${KAFKA_VERSION}/${tgz}"
   echo "Downloading $url"
   curl -fL "$url" -o "$tmpdir/$tgz"
   tar -xzf "$tmpdir/$tgz" -C "$tmpdir"

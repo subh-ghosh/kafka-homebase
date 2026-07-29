@@ -1,19 +1,35 @@
-# Oracle Cloud Always Free (Ubuntu) — Personal Kafka
+# AWS EC2 Free Tier (Ubuntu) — Personal Kafka
 
-This guide installs a **single-node** Kafka broker (KRaft) on an Ubuntu VM.
+This guide installs a **single-node** Kafka broker (KRaft) on an Amazon Web Services (AWS) EC2 Ubuntu VM.
 
-## 0) VM checklist
+## 0) AWS EC2 checklist
 
-- Ubuntu 22.04 (recommended)
-- A public IPv4 address (or a domain pointing to it)
-- Disk: at least ~30GB
+- Log into the [AWS Management Console](https://console.aws.amazon.com/).
+- Navigate to **EC2 > Instances** and click **Launch Instances**.
+- Name: `kafka-broker`
+- OS Image: Select **Ubuntu** and choose **Ubuntu Server 22.04 LTS (HVM)** (Ensure it says "Free tier eligible").
+- Instance Type: **t2.micro** or **t3.micro** (Free tier eligible).
+- Key Pair: Create a new key pair (e.g., `kafka-aws-key`). **Download the `.pem` file and keep it safe**.
+- Storage: 10 to 30 GB (Free tier allows up to 30GB of EBS storage).
+- Launch the instance.
 
-## 1) Open only the needed ports
+## 1) Open only the needed ports (Security Groups)
 
-- `22/tcp` (SSH) — ideally restricted to your IP
-- `9092/tcp` (Kafka clients) — open to the internet *only after* TLS+SASL are enabled
+While the VM is launching, configure the Security Group:
+1. Under **Network and Security > Security Groups**, find the group attached to your new instance.
+2. Edit **Inbound Rules**:
+   - `SSH` (Port `22`) — ideally restricted to your IP (My IP).
+   - `Custom TCP` (Port `9092`) — Source: `0.0.0.0/0` (for Kafka client access).
 
-## 2) Install Kafka
+## 2) Connect and Install Kafka
+
+Find your instance's Public IPv4 address in the EC2 dashboard. Connect via SSH:
+
+```bash
+# On your local machine (Linux/Mac/WSL)
+chmod 400 kafka-aws-key.pem
+ssh -i "kafka-aws-key.pem" ubuntu@<YOUR_PUBLIC_IP>
+```
 
 On the VM:
 
@@ -42,7 +58,7 @@ sudo bash scripts/create_admin_user.sh
 
 ## 5) Generate TLS material
 
-Pick a hostname (recommended): `kafka.yourdomain.com`
+Pick a hostname (recommended): `kafka.yourdomain.com` (Ensure your domain's DNS A Record points to the AWS Public IP).
 
 ```bash
 sudo bash scripts/generate_tls.sh kafka.yourdomain.com
@@ -80,7 +96,7 @@ sudo bash scripts/provision_app.sh \
 
 ## Notes
 
-- Remember that Oracle Always Free is limited to 2 instances.
+- Remember that AWS Free Tier lasts for **12 months**.
 - Keep `auto.create.topics.enable=false` (prevents abuse).
 - Use topic prefixes per app (`app1.*`) and ACLs.
 
@@ -91,5 +107,3 @@ If you ever need to completely reset the Kafka installation (e.g., if you messed
 ```bash
 sudo bash repair.sh
 ```
-
-- For higher reliability you need multiple brokers (not free).

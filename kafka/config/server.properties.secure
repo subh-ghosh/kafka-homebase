@@ -4,7 +4,7 @@ node.id=1
 
 controller.listener.names=CONTROLLER
 listeners=SASL_SSL://0.0.0.0:9092,CONTROLLER://127.0.0.1:9093,INTERNAL://127.0.0.1:9094
-advertised.listeners=SASL_SSL://__PUBLIC_HOST__:9092
+advertised.listeners=SASL_SSL://__PUBLIC_HOST__:9092,INTERNAL://127.0.0.1:9094
 listener.security.protocol.map=SASL_SSL:SASL_SSL,CONTROLLER:PLAINTEXT,INTERNAL:PLAINTEXT
 inter.broker.listener.name=INTERNAL
 
@@ -26,11 +26,12 @@ ssl.truststore.password=__TRUSTSTORE_PASSWORD__
 # SASL/SCRAM
 sasl.enabled.mechanisms=SCRAM-SHA-512
 listener.name.sasl_ssl.sasl.enabled.mechanisms=SCRAM-SHA-512
+listener.name.sasl_ssl.scram-sha-512.sasl.jaas.config=org.apache.kafka.common.security.scram.ScramLoginModule required;
 
 # Authorization (ACLs)
 authorizer.class.name=org.apache.kafka.metadata.authorizer.StandardAuthorizer
 allow.everyone.if.no.acl.found=false
-super.users=User:admin
+super.users=User:admin;User:ANONYMOUS
 
 # Safety defaults
 auto.create.topics.enable=false
