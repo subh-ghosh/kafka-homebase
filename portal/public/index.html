@@ -97,7 +97,7 @@
         </header>
 
         <!-- Initial GitHub Login Card -->
-        <div id="login-card" class="glass-card">
+        <div id="login-card" class="glass-card login-wrap">
             <h2 style="text-align: center; margin-bottom: 1.5rem;">Identity Verification</h2>
             <p style="text-align: center; margin-bottom: 2rem; color: var(--text-muted); font-size: 0.9rem;">
                 To prevent spam and abuse, you must verify your identity with GitHub. You can only provision one Kafka account per person.
@@ -110,7 +110,7 @@
         </div>
 
         <!-- Setup loading / generation -->
-        <div id="setup-card" class="glass-card hidden">
+        <div id="setup-card" class="glass-card login-wrap hidden">
             <h2 style="text-align: center; margin-bottom: 1.5rem;">GitHub Verified!</h2>
             <p style="text-align: center; margin-bottom: 2rem; color: var(--text-muted); font-size: 0.9rem;">
                 Click below to instantly provision your dedicated Kafka username, password, and isolated topic.
@@ -129,7 +129,7 @@
         </div>
 
         <!-- Result Card -->
-        <div id="result-card" class="glass-card hidden" style="max-width: 700px; margin: 0 auto;">
+        <div id="result-card" class="glass-card hidden">
             <div class="success-header">
                 <div class="check-icon">✓</div>
                 <h2>Your Account Dashboard</h2>
@@ -184,6 +184,7 @@
                 </div>
 
                 <div id="code-python" class="code-block active">
+                    <button class="code-copy-btn">Copy</button>
 <pre><code>from confluent_kafka import Producer
 
 conf = {
@@ -200,6 +201,7 @@ producer.flush()</code></pre>
                 </div>
 
                 <div id="code-node" class="code-block hidden">
+                    <button class="code-copy-btn">Copy</button>
 <pre><code>const { Kafka } = require('kafkajs')
 
 const kafka = new Kafka({
@@ -222,6 +224,7 @@ await producer.send({
                 </div>
 
                 <div id="code-java" class="code-block hidden">
+                    <button class="code-copy-btn">Copy</button>
 <pre><code>Properties props = new Properties();
 props.put("bootstrap.servers", "broker.subartaghosh.co.in:9092");
 props.put("security.protocol", "SASL_SSL");
@@ -247,8 +250,8 @@ producer.close();</code></pre>
 
                 <div id="topics-tab" class="code-block active" style="background: transparent; border: none; padding: 0;">
                     <div style="display: flex; gap: 1rem; margin-bottom: 1.5rem;">
-                        <input type="text" id="new-topic-name" placeholder="Topic suffix (e.g. logs)" style="flex: 1; padding: 0.8rem; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: white; border-radius: 8px;">
-                        <button id="create-topic-btn" class="primary-btn" style="width: auto;">Create Topic</button>
+                        <input type="text" id="new-topic-name" placeholder="Topic suffix (e.g. logs)" style="flex: 1; padding: 0.8rem; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); color: white; border-radius: 8px;">
+                        <button id="create-topic-btn" class="primary-btn" style="width: auto; margin-top: 0;">Create Topic</button>
                     </div>
                     <div id="topics-list" style="display: flex; flex-direction: column; gap: 0.8rem;">
                         <div style="text-align: center; color: #888;">Loading topics...</div>
@@ -263,8 +266,8 @@ producer.close();</code></pre>
             </div>
 
             <div class="account-management" style="border-top: 1px solid rgba(255,255,255,0.1); justify-content: center; flex-direction: row;">
-                <button id="regenerate-btn" class="primary-btn btn-warning" style="width: auto;">🔄 Regenerate Password</button>
-                <button id="delete-btn" class="primary-btn btn-danger" style="width: auto;">🗑️ Delete Account</button>
+                <button id="regenerate-btn" class="action-btn" style="background: rgba(255, 159, 67, 0.1); color: #ff9f43; border: 1px solid rgba(255, 159, 67, 0.3);">🔄 Regenerate Password</button>
+                <button id="delete-btn" class="action-btn" style="background: rgba(238, 82, 83, 0.1); color: #ee5253; border: 1px solid rgba(238, 82, 83, 0.3);">🗑️ Delete Account</button>
             </div>
         </div>
         
@@ -333,13 +336,29 @@ producer.close();</code></pre>
         document.querySelectorAll('.tab-btn').forEach(btn => {
             btn.addEventListener('click', () => {
                 document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-                document.querySelectorAll('.code-block').forEach(c => c.classList.add('hidden'));
-                document.querySelectorAll('.code-block').forEach(c => c.classList.remove('active'));
+                document.querySelectorAll('.code-block').forEach(c => {
+                    if(c.id.startsWith('code-') || c.id.endsWith('-tab')) {
+                        c.classList.add('hidden');
+                        c.classList.remove('active');
+                    }
+                });
                 
                 btn.classList.add('active');
                 const targetId = btn.getAttribute('data-target');
                 document.getElementById(targetId).classList.remove('hidden');
                 document.getElementById(targetId).classList.add('active');
+            });
+        });
+
+        // Code block copy logic
+        document.querySelectorAll('.code-copy-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                const codeBlock = btn.parentElement.querySelector('code');
+                navigator.clipboard.writeText(codeBlock.innerText);
+                const originalText = btn.innerText;
+                btn.innerText = 'Copied!';
+                setTimeout(() => btn.innerText = originalText, 2000);
             });
         });
 
@@ -376,24 +395,17 @@ producer.close();</code></pre>
 
                         const sendBtn = document.createElement('button');
                         sendBtn.innerText = 'Send Msg';
-                        sendBtn.className = 'primary-btn';
-                        sendBtn.style.padding = '0.4rem 0.8rem';
-                        sendBtn.style.fontSize = '0.8rem';
+                        sendBtn.className = 'action-btn';
                         sendBtn.onclick = () => openProduceModal(topic);
 
                         const viewBtn = document.createElement('button');
                         viewBtn.innerText = 'View Data';
-                        viewBtn.className = 'primary-btn';
-                        viewBtn.style.padding = '0.4rem 0.8rem';
-                        viewBtn.style.fontSize = '0.8rem';
-                        viewBtn.style.background = 'rgba(255, 255, 255, 0.1)';
+                        viewBtn.className = 'action-btn';
                         viewBtn.onclick = () => viewTopicData(topic);
 
                         const delBtn = document.createElement('button');
                         delBtn.innerText = 'Del';
-                        delBtn.className = 'primary-btn btn-danger';
-                        delBtn.style.padding = '0.4rem 0.8rem';
-                        delBtn.style.fontSize = '0.8rem';
+                        delBtn.className = 'action-btn danger';
                         delBtn.onclick = () => deleteTopic(topic);
 
                         actionsDiv.appendChild(sendBtn);

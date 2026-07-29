@@ -70,9 +70,13 @@ body {
 
 .container {
     width: 100%;
-    max-width: 500px;
+    max-width: 800px;
     padding: 2rem;
     z-index: 1;
+}
+.login-wrap {
+    max-width: 450px;
+    margin: 0 auto;
 }
 
 header {
@@ -152,11 +156,11 @@ input:focus {
     margin-top: 0.4rem;
 }
 
-.primary-btn, .secondary-btn {
+.primary-btn, .secondary-btn, .action-btn {
     width: 100%;
     padding: 0.8rem;
     border-radius: 8px;
-    font-size: 1rem;
+    font-size: 0.95rem;
     font-weight: 600;
     cursor: pointer;
     transition: all 0.2s ease;
@@ -164,6 +168,24 @@ input:focus {
     justify-content: center;
     align-items: center;
     border: none;
+}
+
+.action-btn {
+    width: auto;
+    padding: 0.5rem 1rem;
+    font-size: 0.85rem;
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--text-main);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+.action-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    transform: translateY(-1px);
+}
+.action-btn.danger:hover {
+    background: rgba(255, 71, 87, 0.2);
+    color: #ff4757;
+    border-color: rgba(255, 71, 87, 0.4);
 }
 
 .primary-btn {
@@ -348,9 +370,62 @@ input:focus {
 .github-btn { background: #24292e; color: white; }
 .github-btn:hover { background: #1b1f23; }
 
-.code-tabs { display: flex; gap: 0.5rem; margin-bottom: 0.5rem; }
-.tab-btn { background: rgba(255,255,255,0.05); color: #888; border: none; padding: 0.5rem 1rem; border-radius: 6px; cursor: pointer; }
-.tab-btn.active { background: rgba(255,255,255,0.15); color: white; }
-.code-block { background: #1a1b26; padding: 1rem; border-radius: 8px; overflow-x: auto; font-family: monospace; font-size: 0.85rem; color: #a9b1d6; }
+.code-tabs { 
+    display: flex; 
+    gap: 0.5rem; 
+    margin-bottom: 0.5rem; 
+    background: rgba(0,0,0,0.3);
+    padding: 0.4rem;
+    border-radius: 8px;
+    border: 1px solid var(--card-border);
+}
+.tab-btn { 
+    flex: 1;
+    background: transparent; 
+    color: #888; 
+    border: none; 
+    padding: 0.6rem 1rem; 
+    border-radius: 6px; 
+    cursor: pointer; 
+    font-weight: 600;
+    transition: all 0.2s;
+}
+.tab-btn:hover { color: #ccc; }
+.tab-btn.active { 
+    background: var(--primary); 
+    color: white; 
+    box-shadow: 0 4px 12px rgba(88, 166, 255, 0.2);
+}
+
+.code-block { 
+    background: #1a1b26; 
+    padding: 1.5rem; 
+    border-radius: 8px; 
+    overflow-x: auto; 
+    font-family: 'Courier New', Courier, monospace; 
+    font-size: 0.9rem; 
+    color: #a9b1d6; 
+    position: relative;
+    border: 1px solid rgba(255,255,255,0.05);
+}
 .code-block.hidden { display: none; }
 .code-block pre { margin: 0; }
+
+.code-copy-btn {
+    position: absolute;
+    top: 0.8rem;
+    right: 0.8rem;
+    background: rgba(255,255,255,0.1);
+    border: none;
+    color: #fff;
+    padding: 0.4rem 0.8rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    cursor: pointer;
+    transition: background 0.2s;
+    opacity: 0.5;
+}
+.code-copy-btn:hover {
+    opacity: 1;
+    background: rgba(255,255,255,0.2);
+}
