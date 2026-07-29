@@ -28,16 +28,10 @@ const ADMIN_PASS = process.env.ADMIN_PASS || 'Zxcasq481062@';
 // Queue to handle heavy shell operations concurrently
 const shellQueue = new PQueue({ concurrency: 2 });
 
-// Native Kafka Client
+// Native Kafka Client — connects locally (Kafka runs as PLAINTEXT internally)
 const kafkaClient = new Kafka({
     clientId: 'portal-admin',
-    brokers: ['broker.subartaghosh.co.in:9092'],
-    ssl: { rejectUnauthorized: false },
-    sasl: {
-        mechanism: 'scram-sha-512',
-        username: ADMIN_USER,
-        password: ADMIN_PASS
-    }
+    brokers: ['localhost:9092'],
 });
 
 const generatePassword = (length) => {
