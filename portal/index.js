@@ -582,6 +582,20 @@ const getFolderSize = (dirPath) => {
             }
         }
     }
+const getFolderDataSize = (dirPath) => {
+    let size = 0;
+    if (fs.existsSync(dirPath)) {
+        const files = fs.readdirSync(dirPath);
+        for (let file of files) {
+            const filePath = path.join(dirPath, file);
+            const stats = fs.statSync(filePath);
+            if (stats.isDirectory()) {
+                size += getFolderDataSize(filePath);
+            } else if (file.endsWith('.log')) {
+                size += stats.size;
+            }
+        }
+    }
     return size;
 };
 
@@ -591,7 +605,7 @@ const getUserStorageMB = (username) => {
     if (fs.existsSync(logDirBase)) {
         const logDirs = fs.readdirSync(logDirBase).filter(d => d.startsWith(`${username}.`));
         for (const dir of logDirs) {
-            totalSize += getFolderSize(path.join(logDirBase, dir));
+            totalSize += getFolderDataSize(path.join(logDirBase, dir));
         }
     }
     return (totalSize / (1024 * 1024)).toFixed(2);
