@@ -88,7 +88,7 @@ async function loadUsers() {
                 <td><strong>${username}</strong></td>
                 <td><span class="badge">${handleStr}</span></td>
                 <td>${dateStr}</td>
-                <td><button class="delete-btn" onclick="deleteUser('${username}')">Delete User</button></td>
+                <td><button class="delete-btn" onclick="deleteUser('${username}', this)">Delete User</button></td>
             `;
             usersTableBody.appendChild(tr);
         }
@@ -99,13 +99,25 @@ async function loadUsers() {
     }
 }
 
-async function deleteUser(username) {
-    if (!confirm(`Are you absolutely sure you want to delete ${username}? This removes their Kafka topic and ACLs permanently.`)) {
+async function deleteUser(username, btn) {
+    if (btn && !btn._armed) {
+        btn._armed = true;
+        btn.textContent = '⚠️ Confirm?';
+        btn._timer = setTimeout(() => {
+            btn._armed = false;
+            btn.textContent = 'Delete User';
+        }, 3000);
         return;
+    }
+    if (btn) {
+        clearTimeout(btn._timer);
+        btn._armed = false;
+        btn.disabled = true;
+        btn.textContent = 'Deleting…';
     }
 
     try {
-        actionError.classList.remove('show');
+        if (actionError) actionError.classList.remove('show');
         const res = await fetch(`/api/admin/users/${username}`, {
             method: 'DELETE',
             headers: { 'Authorization': `Bearer ${authToken}` }
@@ -113,14 +125,19 @@ async function deleteUser(username) {
 
         const data = await res.json();
         if (res.ok) {
-            alert(`User ${username} successfully deleted.`);
             loadUsers();
         } else {
-            actionError.innerText = data.error || 'Failed to delete user';
-            actionError.classList.add('show');
+            if (actionError) {
+                actionError.innerText = data.error || 'Failed to delete user';
+                actionError.classList.add('show');
+            }
+            if (btn) { btn.disabled = false; btn.textContent = 'Delete User'; }
         }
     } catch (err) {
-        actionError.innerText = 'Network error while deleting';
-        actionError.classList.add('show');
+        if (actionError) {
+            actionError.innerText = 'Network error while deleting';
+            actionError.classList.add('show');
+        }
+        if (btn) { btn.disabled = false; btn.textContent = 'Delete User'; }
     }
 }

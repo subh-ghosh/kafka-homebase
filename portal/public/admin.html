@@ -210,7 +210,7 @@ const fetchUsers = async () => {
                 const delBtn = document.createElement('button');
                 delBtn.className = 'btn btn-red btn-sm';
                 delBtn.textContent = 'Delete';
-                delBtn.addEventListener('click', () => deleteUser(username));
+                delBtn.addEventListener('click', () => deleteUser(username, delBtn));
                 actTd.appendChild(delBtn);
 
                 tr.append(userTd, ghTd, storeTd, statusTd, dateTd, actTd);
@@ -222,8 +222,20 @@ const fetchUsers = async () => {
     }
 };
 
-const deleteUser = async (username) => {
-    if (!confirm(`Are you sure you want to PERMANENTLY DELETE user "${username}"?`)) return;
+const deleteUser = async (username, btn) => {
+    if (!btn._armed) {
+        btn._armed = true;
+        btn.textContent = '⚠️ Confirm?';
+        btn._timer = setTimeout(() => {
+            btn._armed = false;
+            btn.textContent = 'Delete';
+        }, 3000);
+        return;
+    }
+    clearTimeout(btn._timer);
+    btn._armed = false;
+    btn.disabled = true;
+    btn.textContent = 'Deleting…';
     try {
         const res = await fetch(`/api/admin/users/${username}`, {
             method: 'DELETE',
@@ -233,10 +245,14 @@ const deleteUser = async (username) => {
         if (data.success) {
             fetchUsers();
         } else {
-            alert(data.error || 'Failed to delete user');
+            btn.disabled = false;
+            btn.textContent = 'Error!';
+            setTimeout(() => { btn.textContent = 'Delete'; }, 3000);
         }
     } catch (err) {
-        alert('Server error deleting user');
+        btn.disabled = false;
+        btn.textContent = 'Failed';
+        setTimeout(() => { btn.textContent = 'Delete'; }, 3000);
     }
 };
 
