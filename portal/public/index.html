@@ -1084,10 +1084,19 @@ $('regenerate-btn').addEventListener('click', async () => {
     if (!confirm('This changes your Kafka password. Update all your running clients after regenerating.\n\nContinue?')) return;
     const btn = $('regenerate-btn');
     btn.disabled = true; btn.innerText = 'Regenerating…';
+
+    // Sync token from localStorage in case it changed
+    if (!currentAccessToken) currentAccessToken = localStorage.getItem('kb_token') || '';
+    if (!currentAccessToken) {
+        showToast('Not logged in — please refresh and log in again.', 5000);
+        btn.disabled = false; btn.innerText = '🔄 Regenerate';
+        return;
+    }
+
     try {
-        const res  = await fetch('/api/regenerate', {
+        const res = await fetch('/api/regenerate', {
             method: 'POST',
-            headers: { 
+            headers: {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${currentAccessToken}`
             },
@@ -1099,9 +1108,14 @@ $('regenerate-btn').addEventListener('click', async () => {
             $('cred-password').innerText = userPassword;
             passRevealed = true; $('pass-eye').innerText = '🙈';
             showToast('🔑 New password set — save it now!', 6000);
-        } else { showToast('Error: ' + data.error, 4000); }
-    } catch { showToast('Server error.', 3000); }
-    finally { btn.disabled = false; btn.innerText = '🔄 Regenerate'; }
+        } else {
+            showToast('Error: ' + (data.error || 'Unknown error'), 5000);
+        }
+    } catch (err) {
+        showToast('Network error: ' + err.message, 5000);
+    } finally {
+        btn.disabled = false; btn.innerText = '🔄 Regenerate';
+    }
 });
 
 $('delete-btn').addEventListener('click', async () => {
