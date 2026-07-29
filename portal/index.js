@@ -12,8 +12,8 @@ const { Kafka } = require('kafkajs');
 const db = require('./db');
 
 const app = express();
-app.use(cors());
-app.use(bodyParser.json());
+app.use(cors({ origin: process.env.ALLOWED_ORIGIN || 'https://kafka.subartaghosh.co.in' }));
+app.use(bodyParser.json({ limit: '16kb' }));
 app.use(express.static('public'));
 
 const PORT = process.env.PORT || 8080;
@@ -23,7 +23,11 @@ const MAX_GLOBAL_USERS = 200;
 const GITHUB_CLIENT_ID = process.env.GITHUB_CLIENT_ID || '';
 const GITHUB_CLIENT_SECRET = process.env.GITHUB_CLIENT_SECRET || '';
 const ADMIN_USER = process.env.ADMIN_USER || 'admin';
-const ADMIN_PASS = process.env.ADMIN_PASS || 'Zxcasq481062@';
+const ADMIN_PASS = process.env.ADMIN_PASS;
+if (!ADMIN_PASS) {
+    console.error('FATAL: ADMIN_PASS environment variable is not set. Refusing to start.');
+    process.exit(1);
+}
 
 // Queue to handle heavy shell operations concurrently
 const shellQueue = new PQueue({ concurrency: 2 });
@@ -33,6 +37,36 @@ const kafkaClient = new Kafka({
     clientId: 'portal-admin',
     brokers: ['127.0.0.1:9094'],
 });
+
+// Singleton Kafka admin — avoids per-request connect/disconnect overhead
+let _adminInstance = null;
+const getAdmin = async () => {
+    if (!_adminInstance) {
+        _adminInstance = kafkaClient.admin();
+        try { await _adminInstance.connect(); }
+        catch (e) { _adminInstance = null; throw e; }
+    }
+    return _adminInstance;
+};
+
+// Singleton Kafka producer
+let _producerInstance = null;
+const getProducer = async () => {
+    if (!_producerInstance) {
+        _producerInstance = kafkaClient.producer();
+        try { await _producerInstance.connect(); }
+        catch (e) { _producerInstance = null; throw e; }
+    }
+    return _producerInstance;
+};
+
+// GitHub token → username cache (5-min TTL) — prevents GitHub API rate-limit exhaustion
+const tokenCache = new Map();
+const TOKEN_TTL = 5 * 60 * 1000;
+
+// Username validator — must match internal pattern to block shell injection
+const VALID_USERNAME_RE = /^user_[a-f0-9]{8}$/;
+const isValidUsername = (u) => VALID_USERNAME_RE.test(u);
 
 const generatePassword = (length) => {
     return crypto.randomBytes(length).toString('base64').replace(/[^a-zA-Z0-9]/g, '').substring(0, length) + "!";
@@ -69,7 +103,7 @@ const safeRunCommand = (command) => {
 // PUBLIC ROUTES
 // -----------------------------------------------------
 
-// Helper for verifying access token
+// Helper for verifying access token — 5-min cache prevents hammering GitHub API
 const verifyUserHelper = async (req, res) => {
     let accessToken = req.headers['authorization']?.split(' ')[1];
     if (!accessToken && req.body && req.body.accessToken) {
@@ -78,6 +112,12 @@ const verifyUserHelper = async (req, res) => {
     if (!accessToken) {
         res.status(401).json({ error: 'Missing token' });
         return null;
+    }
+
+    // Serve from cache if fresh
+    const cached = tokenCache.get(accessToken);
+    if (cached && cached.expiresAt > Date.now()) {
+        return cached.username;
     }
 
     let githubId = null;
@@ -96,6 +136,9 @@ const verifyUserHelper = async (req, res) => {
         res.status(404).json({ error: 'User not found in portal.' });
         return null;
     }
+
+    // Cache the resolved username for 5 minutes
+    tokenCache.set(accessToken, { username: foundUser.username, expiresAt: Date.now() + TOKEN_TTL });
     return foundUser.username;
 };
 
@@ -141,7 +184,7 @@ app.get('/api/user', async (req, res) => {
             username: foundData.username,
             password: '****************',
             topic: foundData.topicName,
-            storageMB: foundData.storageMB || 0,
+            storageMB: parseFloat(getUserStorageMB(foundData.username)),
             accessToken // Return access token for frontend reuse
         });
     } else {
@@ -261,11 +304,19 @@ app.post('/api/delete_account', async (req, res) => {
     const foundUser = foundData.username;
 
     try {
+        // Delete ALL user-owned topics (not just .events) via native Kafka API
+        const admin = await getAdmin();
+        const allTopics = await admin.listTopics();
+        const userTopics = allTopics.filter(t => t.startsWith(`${foundUser}.`));
+        if (userTopics.length > 0) {
+            await admin.deleteTopics({ topics: userTopics });
+        }
+
+        // Remove SCRAM credentials and ACLs via admin shell
         await shellQueue.add(async () => {
             const adminProps = '/etc/kafka/admin.properties';
             if (fs.existsSync('/opt/kafka/bin/kafka-configs.sh')) {
                 await safeRunCommand(`/opt/kafka/bin/kafka-configs.sh --bootstrap-server broker.subartaghosh.co.in:9092 --command-config ${adminProps} --alter --delete-config "SCRAM-SHA-512" --entity-type users --entity-name ${foundUser}`);
-                await safeRunCommand(`/opt/kafka/bin/kafka-topics.sh --bootstrap-server broker.subartaghosh.co.in:9092 --command-config ${adminProps} --delete --topic "${foundUser}.events"`);
                 await safeRunCommand(`/opt/kafka/bin/kafka-acls.sh --bootstrap-server broker.subartaghosh.co.in:9092 --command-config ${adminProps} --remove --allow-principal "User:${foundUser}" --operation Read --operation Write --operation Describe --operation Create --topic "${foundUser}." --resource-pattern-type prefixed --force`);
                 await safeRunCommand(`/opt/kafka/bin/kafka-acls.sh --bootstrap-server broker.subartaghosh.co.in:9092 --command-config ${adminProps} --remove --allow-principal "User:${foundUser}" --operation Read --operation Describe --group "${foundUser}" --resource-pattern-type prefixed --force`);
             }
@@ -274,7 +325,7 @@ app.post('/api/delete_account', async (req, res) => {
         await db.deleteUser(foundUser);
         res.json({ success: true });
     } catch (err) {
-        console.error("Failed to delete account:", err);
+        console.error('Failed to delete account:', err);
         res.status(500).json({ error: 'Failed to delete account from Kafka.' });
     }
 });
@@ -288,15 +339,12 @@ app.get('/api/topics', async (req, res) => {
     if (!username) return;
 
     try {
-        const admin = kafkaClient.admin();
-        await admin.connect();
+        const admin = await getAdmin();
         const allTopics = await admin.listTopics();
-        await admin.disconnect();
-
         const topics = allTopics.filter(t => t.startsWith(`${username}.`));
         res.json({ success: true, topics });
     } catch (err) {
-        console.error("Topics fetch error:", err);
+        console.error('Topics fetch error:', err);
         res.status(500).json({ error: 'Failed to list topics via Kafka API' });
     }
 });
@@ -311,16 +359,20 @@ app.post('/api/topics', async (req, res) => {
     const fullTopic = `${username}.${suffix}`;
 
     try {
-        const admin = kafkaClient.admin();
-        await admin.connect();
-        await admin.createTopics({
+        const admin = await getAdmin();
+        const created = await admin.createTopics({
             waitForLeaders: true,
             topics: [{ topic: fullTopic, numPartitions: 3, replicationFactor: 1 }]
         });
-        await admin.disconnect();
+        if (!created) {
+            return res.status(409).json({ error: 'Topic already exists.' });
+        }
         res.json({ success: true, topic: fullTopic });
     } catch (err) {
-        console.error("Topic create error:", err);
+        if (err.type === 'TOPIC_ALREADY_EXISTS' || err.message?.includes('TOPIC_ALREADY_EXISTS')) {
+            return res.status(409).json({ error: 'Topic already exists.' });
+        }
+        console.error('Topic create error:', err);
         res.status(500).json({ error: 'Failed to create topic' });
     }
 });
@@ -334,13 +386,11 @@ app.delete('/api/topics/:topic', async (req, res) => {
     }
 
     try {
-        const admin = kafkaClient.admin();
-        await admin.connect();
+        const admin = await getAdmin();
         await admin.deleteTopics({ topics: [topic] });
-        await admin.disconnect();
         res.json({ success: true });
     } catch (err) {
-        console.error("Topic delete error:", err);
+        console.error('Topic delete error:', err);
         res.status(500).json({ error: 'Failed to delete topic' });
     }
 });
@@ -355,10 +405,8 @@ app.get('/api/topics/:topic/data', async (req, res) => {
 
     try {
         // Fetch topic offsets to know where to seek
-        const admin = kafkaClient.admin();
-        await admin.connect();
+        const admin = await getAdmin();
         const offsets = await admin.fetchTopicOffsets(topic);
-        await admin.disconnect();
 
         const groupId = `portal-viewer-${username}-${Date.now()}`;
         const consumer = kafkaClient.consumer({ groupId });
@@ -429,16 +477,14 @@ app.post('/api/topics/:topic/produce', async (req, res) => {
     if (!payload) return res.status(400).json({ error: 'Missing payload' });
 
     try {
-        const producer = kafkaClient.producer();
-        await producer.connect();
+        const producer = await getProducer();
         await producer.send({
             topic: topic,
-            messages: [{ value: typeof payload === "string" ? payload : JSON.stringify(payload) }]
+            messages: [{ value: typeof payload === 'string' ? payload : JSON.stringify(payload) }]
         });
-        await producer.disconnect();
         res.json({ success: true });
     } catch (err) {
-        console.error("Produce error:", err);
+        console.error('Produce error:', err);
         res.status(500).json({ error: 'Failed to produce message' });
     }
 });
@@ -519,7 +565,7 @@ const getFolderSize = (dirPath) => {
 
 const getUserStorageMB = (username) => {
     let totalSize = 0;
-    const logDirBase = '/tmp/kafka-logs';
+    const logDirBase = '/var/lib/kafka/logs';
     if (fs.existsSync(logDirBase)) {
         const logDirs = fs.readdirSync(logDirBase).filter(d => d.startsWith(`${username}.`));
         for (const dir of logDirs) {
@@ -550,18 +596,31 @@ app.get('/api/admin/users', adminAuth, async (req, res) => {
 
 app.delete('/api/admin/users/:username', adminAuth, async (req, res) => {
     const username = req.params.username;
-    const foundData = await db.getUserByName(username);
 
+    // Block shell injection — username must match internal generation pattern
+    if (!isValidUsername(username)) {
+        return res.status(400).json({ error: 'Invalid username format.' });
+    }
+
+    const foundData = await db.getUserByName(username);
     if (!foundData) {
         return res.status(404).json({ error: 'User not found in DB.' });
     }
 
     try {
+        // Delete ALL user-owned topics via native Kafka API
+        const admin = await getAdmin();
+        const allTopics = await admin.listTopics();
+        const userTopics = allTopics.filter(t => t.startsWith(`${username}.`));
+        if (userTopics.length > 0) {
+            await admin.deleteTopics({ topics: userTopics });
+        }
+
+        // Remove SCRAM credentials and ACLs
         await shellQueue.add(async () => {
             const adminProps = '/etc/kafka/admin.properties';
             if (fs.existsSync('/opt/kafka/bin/kafka-configs.sh')) {
                 await safeRunCommand(`/opt/kafka/bin/kafka-configs.sh --bootstrap-server broker.subartaghosh.co.in:9092 --command-config ${adminProps} --alter --delete-config "SCRAM-SHA-512" --entity-type users --entity-name ${username}`);
-                await safeRunCommand(`/opt/kafka/bin/kafka-topics.sh --bootstrap-server broker.subartaghosh.co.in:9092 --command-config ${adminProps} --delete --topic "${username}.events"`);
                 await safeRunCommand(`/opt/kafka/bin/kafka-acls.sh --bootstrap-server broker.subartaghosh.co.in:9092 --command-config ${adminProps} --remove --allow-principal "User:${username}" --operation Read --operation Write --operation Describe --operation Create --topic "${username}." --resource-pattern-type prefixed --force`);
                 await safeRunCommand(`/opt/kafka/bin/kafka-acls.sh --bootstrap-server broker.subartaghosh.co.in:9092 --command-config ${adminProps} --remove --allow-principal "User:${username}" --operation Read --operation Describe --group "${username}" --resource-pattern-type prefixed --force`);
             }
@@ -570,7 +629,7 @@ app.delete('/api/admin/users/:username', adminAuth, async (req, res) => {
         await db.deleteUser(username);
         res.json({ success: true, message: `Successfully deleted user ${username}` });
     } catch (err) {
-        console.error("Failed to delete user:", err);
+        console.error('Failed to delete user:', err);
         res.status(500).json({ error: 'Failed to delete user from Kafka.' });
     }
 });
@@ -587,34 +646,38 @@ db.initDb().then(() => {
 // BACKGROUND ENFORCER (125MB STORAGE CAP)
 // -----------------------------------------------------
 const checkDiskUsage = async () => {
-    const users = await db.getAllUsers();
-    const MAX_MB = 125.00;
+    try {
+        const users = await db.getAllUsers();
+        const MAX_MB = 125.00;
 
-    for (const info of users) {
-        const username = info.username;
-        const storageMB = parseFloat(getUserStorageMB(username));
+        for (const info of users) {
+            const username = info.username;
+            const storageMB = parseFloat(getUserStorageMB(username));
 
-        if (storageMB > MAX_MB && info.quotaExceeded === 0) {
-            // Revoke write ACL
-            await shellQueue.add(async () => {
-                const adminProps = '/etc/kafka/admin.properties';
-                if (fs.existsSync('/opt/kafka/bin/kafka-acls.sh')) {
-                    await safeRunCommand(`/opt/kafka/bin/kafka-acls.sh --bootstrap-server broker.subartaghosh.co.in:9092 --command-config ${adminProps} --remove --allow-principal "User:${username}" --operation Write --topic "${username}." --resource-pattern-type prefixed --force`);
-                }
-            });
-            await db.setQuotaExceeded(username, true);
-            console.log(`User ${username} exceeded 125MB disk quota (${storageMB} MB). Write ACL revoked.`);
-        } else if (storageMB <= MAX_MB && info.quotaExceeded === 1) {
-            // Restore write ACL
-            await shellQueue.add(async () => {
-                const adminProps = '/etc/kafka/admin.properties';
-                if (fs.existsSync('/opt/kafka/bin/kafka-acls.sh')) {
-                    await safeRunCommand(`/opt/kafka/bin/kafka-acls.sh --bootstrap-server broker.subartaghosh.co.in:9092 --command-config ${adminProps} --add --allow-principal "User:${username}" --operation Write --topic "${username}." --resource-pattern-type prefixed`);
-                }
-            });
-            await db.setQuotaExceeded(username, false);
-            console.log(`User ${username} dropped below 125MB disk quota (${storageMB} MB). Write ACL restored.`);
+            if (storageMB > MAX_MB && info.quotaExceeded === 0) {
+                // Revoke write ACL
+                await shellQueue.add(async () => {
+                    const adminProps = '/etc/kafka/admin.properties';
+                    if (fs.existsSync('/opt/kafka/bin/kafka-acls.sh')) {
+                        await safeRunCommand(`/opt/kafka/bin/kafka-acls.sh --bootstrap-server broker.subartaghosh.co.in:9092 --command-config ${adminProps} --remove --allow-principal "User:${username}" --operation Write --topic "${username}." --resource-pattern-type prefixed --force`);
+                    }
+                });
+                await db.setQuotaExceeded(username, true);
+                console.log(`[QuotaEnforcer] User ${username} exceeded 125MB (${storageMB} MB). Write ACL revoked.`);
+            } else if (storageMB <= MAX_MB && info.quotaExceeded === 1) {
+                // Restore write ACL
+                await shellQueue.add(async () => {
+                    const adminProps = '/etc/kafka/admin.properties';
+                    if (fs.existsSync('/opt/kafka/bin/kafka-acls.sh')) {
+                        await safeRunCommand(`/opt/kafka/bin/kafka-acls.sh --bootstrap-server broker.subartaghosh.co.in:9092 --command-config ${adminProps} --add --allow-principal "User:${username}" --operation Write --topic "${username}." --resource-pattern-type prefixed`);
+                    }
+                });
+                await db.setQuotaExceeded(username, false);
+                console.log(`[QuotaEnforcer] User ${username} dropped below 125MB (${storageMB} MB). Write ACL restored.`);
+            }
         }
+    } catch (err) {
+        console.error('[QuotaEnforcer] Error during disk usage check:', err.message || err);
     }
 };
 

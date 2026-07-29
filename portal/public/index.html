@@ -189,7 +189,7 @@
             </div>
             
             <div class="account-management" style="margin-top: 2rem; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 1.5rem; display: flex; gap: 1rem;">
-                <button id="regenerate-btn" class="action-btn" style="flex: 1; background: rgba(255, 159, 67, 0.1); color: #ff9f43; border-color: rgba(255, 159, 67, 0.3);">🔄 Reg. Password</button>
+                <button id="regenerate-btn" class="action-btn" style="flex: 1; background: rgba(255, 159, 67, 0.1); color: #ff9f43; border-color: rgba(255, 159, 67, 0.3);">🔄 Regenerate</button>
                 <button id="delete-btn" class="action-btn danger" style="flex: 1;">🗑️ Delete Acc.</button>
             </div>
         </div> <!-- End Column 1 -->
@@ -361,17 +361,21 @@ producer.close();</code></pre>
             });
         });
 
-        // Tab Switching Logic
+        // Tab Switching Logic — scoped to each tab group's parent to avoid cross-section interference
         document.querySelectorAll('.tab-btn').forEach(btn => {
             btn.addEventListener('click', () => {
-                document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-                document.querySelectorAll('.code-block').forEach(c => {
-                    if(c.id.startsWith('code-') || c.id.endsWith('-tab')) {
-                        c.classList.add('hidden');
-                        c.classList.remove('active');
-                    }
+                const tabGroup = btn.closest('.code-tabs');
+                const parent = tabGroup.parentElement;
+
+                // Deactivate only buttons in this specific group
+                tabGroup.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+
+                // Hide only panels belonging to this section
+                parent.querySelectorAll('.code-block').forEach(c => {
+                    c.classList.add('hidden');
+                    c.classList.remove('active');
                 });
-                
+
                 btn.classList.add('active');
                 const targetId = btn.getAttribute('data-target');
                 document.getElementById(targetId).classList.remove('hidden');
@@ -454,6 +458,7 @@ producer.close();</code></pre>
         };
 
         const viewTopicData = async (topic) => {
+            currentViewTopic = topic; // store for auto-refresh use
             const modal = document.getElementById('data-modal');
             const title = document.getElementById('data-modal-title');
             const content = document.getElementById('data-modal-content');
@@ -529,7 +534,7 @@ producer.close();</code></pre>
                 alert('Server error creating topic.');
             } finally {
                 btn.disabled = false;
-                btn.innerText = 'Create Topic';
+                btn.innerText = 'Create';
             }
         });
 
@@ -538,6 +543,7 @@ producer.close();</code></pre>
         });
 
         let currentProduceTopic = '';
+        let currentViewTopic = ''; // tracks which topic the data modal is showing
         const openProduceModal = (topic) => {
             currentProduceTopic = topic;
             document.getElementById('produce-modal-title').innerText = `Produce to ${topic}`;
@@ -876,10 +882,9 @@ producer.close();</code></pre>
         
         autoRefreshToggle.addEventListener('change', (e) => {
             if (e.target.checked) {
-                const topic = document.getElementById('data-modal-title').innerText.replace('Data: ', '');
                 autoRefreshInterval = setInterval(() => {
                     const dataContent = document.getElementById('data-modal-content');
-                    fetch(`/api/topics/${topic}/data`, {
+                    fetch(`/api/topics/${currentViewTopic}/data`, {
                         headers: { 'Authorization': `Bearer ${currentAccessToken}` }
                     }).then(res => res.json()).then(data => {
                         if (data.success) {

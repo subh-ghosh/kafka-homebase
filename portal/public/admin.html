@@ -76,6 +76,10 @@
 
         <!-- Dashboard -->
         <div id="dashboard-section" class="glass-card hidden">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                <span style="color: rgba(255,255,255,0.5); font-size: 0.9rem;">Admin Panel</span>
+                <button id="admin-logout-btn" style="color: #ff4757; background: rgba(255,71,87,0.1); border: 1px solid rgba(255,71,87,0.3); padding: 0.4rem 1rem; border-radius: 8px; cursor: pointer; font-size: 0.85rem;">Log Out</button>
+            </div>
             <div class="stats-grid">
                 <div class="stat-card">
                     <div>Total Users</div>
@@ -129,7 +133,7 @@
     </main>
 
     <script>
-        let authToken = localStorage.getItem('adminToken');
+        let authToken = sessionStorage.getItem('adminToken');
         
         const showLogin = () => {
             document.getElementById('login-section').classList.remove('hidden');
@@ -148,7 +152,7 @@
                     headers: { 'Authorization': `Basic ${authToken}` }
                 });
                 if (res.status === 401) {
-                    localStorage.removeItem('adminToken');
+                    sessionStorage.removeItem('adminToken');
                     showLogin();
                     return;
                 }
@@ -195,17 +199,28 @@
                         ? `<span style="color: #ff4757; font-weight: bold;">BLOCKED</span>` 
                         : `<span style="color: #2ed573;">OK</span>`;
 
-                    tr.innerHTML = `
-                        <td style="font-family: monospace; color: #a5d6ff;">${username}</td>
-                        <td>${info.githubHandle || info.githubId}</td>
-                        <td style="font-family: monospace;">${storageStr}</td>
-                        <td>${quotaBadge}</td>
-                        <td>${new Date(info.created_at).toLocaleDateString()}</td>
-                        <td>
-                            <button class="primary-btn btn-danger" style="padding: 0.4rem 0.8rem; font-size: 0.8rem;" onclick="deleteUser('${username}')">Delete User</button>
-                        </td>
-                    `;
-                    tbody.appendChild(tr);
+                    // Safe DOM construction — no innerHTML with user-controlled data
+                    [
+                        [username, 'font-family: monospace; color: #a5d6ff;'],
+                        [info.githubHandle || info.githubId, ''],
+                        [storageStr, 'font-family: monospace;'],
+                        [null, '', quotaBadge],  // quota badge uses safe hardcoded html
+                        [new Date(info.created_at).toLocaleDateString(), '']
+                    ].forEach(([text, style, html]) => {
+                        const td = document.createElement('td');
+                        if (style) td.style.cssText = style;
+                        if (html) td.innerHTML = html;  // quotaBadge is hardcoded — safe
+                        else td.textContent = text;
+                        tr.appendChild(td);
+                    });
+                    const actionTd = document.createElement('td');
+                    const delBtn = document.createElement('button');
+                    delBtn.className = 'primary-btn btn-danger';
+                    delBtn.style.cssText = 'padding: 0.4rem 0.8rem; font-size: 0.8rem;';
+                    delBtn.textContent = 'Delete User';
+                    delBtn.addEventListener('click', () => deleteUser(username));
+                    actionTd.appendChild(delBtn);
+                    tr.appendChild(actionTd);
                 }
             } catch (err) {
                 alert('Failed to load admin data');
@@ -243,7 +258,7 @@
                 });
                 if (res.ok) {
                     authToken = token;
-                    localStorage.setItem('adminToken', token);
+                    sessionStorage.setItem('adminToken', token);
                     showDashboard();
                 } else {
                     document.getElementById('login-err').innerText = 'Invalid credentials';
@@ -253,6 +268,12 @@
                 document.getElementById('login-err').innerText = 'Server error';
                 document.getElementById('login-err').classList.add('show');
             }
+        });
+
+        document.getElementById('admin-logout-btn').addEventListener('click', () => {
+            sessionStorage.removeItem('adminToken');
+            authToken = null;
+            showLogin();
         });
 
         if (authToken) {
