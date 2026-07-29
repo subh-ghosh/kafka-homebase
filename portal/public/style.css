@@ -344,3 +344,6 @@ input:focus {
     padding: 0.1rem 0.3rem;
     border-radius: 3px;
 }
+
+.github-btn { background: #24292e; color: white; }
+.github-btn:hover { background: #1b1f23; }
