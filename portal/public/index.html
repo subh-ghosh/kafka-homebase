@@ -1071,10 +1071,9 @@ $('delete-btn').addEventListener('click', async () => {
 // ── TAB SWITCHING ──────────────────────────────────────
 document.querySelectorAll('.tab-btn').forEach(btn => {
     btn.addEventListener('click', () => {
-        const tabsEl = btn.parentElement;
-        const parentEl = tabsEl.parentElement;
-        tabsEl.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-        parentEl.querySelectorAll('.tab-panel').forEach(p => p.classList.add('hidden'));
+        const cardEl = btn.closest('.card');
+        cardEl.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        cardEl.querySelectorAll('.tab-panel').forEach(p => p.classList.add('hidden'));
         btn.classList.add('active');
         $(btn.dataset.target).classList.remove('hidden');
     });
