@@ -129,13 +129,17 @@
         </div>
 
         <!-- Result Card -->
-        <div id="result-card" class="glass-card hidden">
-            <div class="success-header">
+        <div id="result-card" class="glass-card hidden" style="padding: 2rem;">
+            <div class="success-header" style="margin-bottom: 2rem;">
                 <div class="check-icon">✓</div>
                 <h2>Your Account Dashboard</h2>
             </div>
             
-            <div class="credentials-grid">
+            <div class="dashboard-grid">
+                
+                <!-- COLUMN 1: Credentials & Account -->
+                <div class="dash-col">
+                    <div class="credentials-grid">
                 <div class="cred-item">
                     <span class="cred-label">Bootstrap Server</span>
                     <div class="cred-value-box">
@@ -169,13 +173,23 @@
                 </div>
             </div>
 
-            <div style="text-align: center; margin-top: 1rem;">
-                <button id="download-env-btn" class="primary-btn" style="background: rgba(46, 213, 115, 0.2); color: #2ed573; border: 1px solid #2ed573; display: none;">📥 Download .env File</button>
+            <div style="text-align: center; margin-top: 1.5rem;">
+                <button id="download-env-btn" class="action-btn" style="width: 100%; display: none; background: rgba(46, 213, 115, 0.15); color: #2ed573; border-color: rgba(46, 213, 115, 0.3);">📥 Download .env File</button>
             </div>
             
-            <div class="instructions" style="margin-top: 2rem; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 1.5rem;">
-                <h3 style="margin-bottom: 1rem;">How to Connect</h3>
-                <p style="font-size: 0.9rem; color: #bbb; margin-bottom: 1rem;">Your permissions allow you to Read, Write, and Create <strong>any topic</strong> that starts with <code id="res-prefix"></code>. You do not need a dashboard to create topics—simply create them directly from your code!</p>
+            <div class="account-management" style="margin-top: 2rem; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 1.5rem; display: flex; gap: 1rem;">
+                <button id="regenerate-btn" class="action-btn" style="flex: 1; background: rgba(255, 159, 67, 0.1); color: #ff9f43; border-color: rgba(255, 159, 67, 0.3);">🔄 Reg. Password</button>
+                <button id="delete-btn" class="action-btn danger" style="flex: 1;">🗑️ Delete Acc.</button>
+            </div>
+        </div> <!-- End Column 1 -->
+
+        <!-- COLUMN 2: Connect & Topics -->
+        <div class="dash-col">
+            
+            <!-- How to Connect Box -->
+            <div style="background: rgba(0,0,0,0.2); border: 1px solid var(--card-border); border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem;">
+                <h3 style="margin-bottom: 0.5rem; color: #fff; font-size: 1.1rem;">How to Connect</h3>
+                <p style="font-size: 0.85rem; color: #bbb; margin-bottom: 1rem;">Your permissions allow you to Read, Write, and Create <strong>any topic</strong> that starts with <code id="res-prefix"></code>. You do not need a dashboard to create topics—simply create them directly from your code!</p>
                 
                 <div class="code-tabs">
                     <button class="tab-btn active" data-target="code-python">Python</button>
@@ -237,11 +251,11 @@ Producer&lt;String, String&gt; producer = new KafkaProducer&lt;&gt;(props);
 producer.send(new ProducerRecord&lt;&gt;("<span class="ins-top"></span>", "key", "hello world"));
 producer.close();</code></pre>
                 </div>
-            </div>
+            </div> <!-- End How to Connect Box -->
 
-            <!-- Account Management -->
-            <div class="account-management" style="margin-top: 2rem; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 1.5rem; flex-direction: column; align-items: stretch;">
-                <h3 style="margin-bottom: 1rem; color: #fff; text-align: center;">Manage Topics & Consumers</h3>
+            <!-- Topics & Consumers Box -->
+            <div style="background: rgba(0,0,0,0.2); border: 1px solid var(--card-border); border-radius: 12px; padding: 1.5rem;">
+                <h3 style="margin-bottom: 1rem; color: #fff; text-align: left; font-size: 1.1rem;">Manage Topics & Consumers</h3>
                 
                 <div class="code-tabs" style="margin-bottom: 1rem;">
                     <button class="tab-btn active" data-target="topics-tab" style="flex: 1;">Topics</button>
@@ -251,7 +265,7 @@ producer.close();</code></pre>
                 <div id="topics-tab" class="code-block active" style="background: transparent; border: none; padding: 0;">
                     <div style="display: flex; gap: 1rem; margin-bottom: 1.5rem;">
                         <input type="text" id="new-topic-name" placeholder="Topic suffix (e.g. logs)" style="flex: 1; padding: 0.8rem; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); color: white; border-radius: 8px;">
-                        <button id="create-topic-btn" class="primary-btn" style="width: auto; margin-top: 0;">Create Topic</button>
+                        <button id="create-topic-btn" class="action-btn primary" style="margin-top: 0;">Create</button>
                     </div>
                     <div id="topics-list" style="display: flex; flex-direction: column; gap: 0.8rem;">
                         <div style="text-align: center; color: #888;">Loading topics...</div>
@@ -263,13 +277,12 @@ producer.close();</code></pre>
                         <div style="text-align: center; color: #888;">Loading consumer groups...</div>
                     </div>
                 </div>
-            </div>
+            </div> <!-- End Topics Box -->
 
-            <div class="account-management" style="border-top: 1px solid rgba(255,255,255,0.1); justify-content: center; flex-direction: row;">
-                <button id="regenerate-btn" class="action-btn" style="background: rgba(255, 159, 67, 0.1); color: #ff9f43; border: 1px solid rgba(255, 159, 67, 0.3);">🔄 Regenerate Password</button>
-                <button id="delete-btn" class="action-btn" style="background: rgba(238, 82, 83, 0.1); color: #ee5253; border: 1px solid rgba(238, 82, 83, 0.3);">🗑️ Delete Account</button>
-            </div>
-        </div>
+        </div> <!-- End Column 2 -->
+        
+        </div> <!-- End Grid -->
+        </div> <!-- End Result Card -->
         
         <!-- Support Footer -->
         <div class="footer-support">
@@ -395,7 +408,7 @@ producer.close();</code></pre>
 
                         const sendBtn = document.createElement('button');
                         sendBtn.innerText = 'Send Msg';
-                        sendBtn.className = 'action-btn';
+                        sendBtn.className = 'action-btn primary';
                         sendBtn.onclick = () => openProduceModal(topic);
 
                         const viewBtn = document.createElement('button');
