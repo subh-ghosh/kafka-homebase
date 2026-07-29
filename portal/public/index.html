@@ -168,6 +168,10 @@
                     </div>
                 </div>
             </div>
+
+            <div style="text-align: center; margin-top: 1rem;">
+                <button id="download-env-btn" class="primary-btn" style="background: rgba(46, 213, 115, 0.2); color: #2ed573; border: 1px solid #2ed573; display: none;">📥 Download .env File</button>
+            </div>
             
             <div class="instructions" style="margin-top: 2rem; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 1.5rem;">
                 <h3 style="margin-bottom: 1rem;">How to Connect</h3>
@@ -233,23 +237,34 @@ producer.close();</code></pre>
             </div>
 
             <!-- Account Management -->
-            <div class="account-management" style="margin-top: 2rem; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 1.5rem;">
-                <h3 style="margin-bottom: 1rem; color: #fff;">Manage Topics</h3>
+            <div class="account-management" style="margin-top: 2rem; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 1.5rem; flex-direction: column; align-items: stretch;">
+                <h3 style="margin-bottom: 1rem; color: #fff; text-align: center;">Manage Topics & Consumers</h3>
                 
-                <div style="display: flex; gap: 1rem; margin-bottom: 1.5rem;">
-                    <input type="text" id="new-topic-name" placeholder="Topic suffix (e.g. logs)" style="flex: 1; padding: 0.8rem; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: white; border-radius: 8px;">
-                    <button id="create-topic-btn" class="primary-btn" style="width: auto;">Create Topic</button>
+                <div class="code-tabs" style="margin-bottom: 1rem;">
+                    <button class="tab-btn active" data-target="topics-tab" style="flex: 1;">Topics</button>
+                    <button class="tab-btn" data-target="consumers-tab" style="flex: 1;" id="consumers-tab-btn">Consumer Groups</button>
                 </div>
 
-                <div id="topics-list" style="display: flex; flex-direction: column; gap: 0.8rem;">
-                    <!-- Topics will be injected here -->
-                    <div style="text-align: center; color: #888;">Loading topics...</div>
+                <div id="topics-tab" class="code-block active" style="background: transparent; border: none; padding: 0;">
+                    <div style="display: flex; gap: 1rem; margin-bottom: 1.5rem;">
+                        <input type="text" id="new-topic-name" placeholder="Topic suffix (e.g. logs)" style="flex: 1; padding: 0.8rem; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: white; border-radius: 8px;">
+                        <button id="create-topic-btn" class="primary-btn" style="width: auto;">Create Topic</button>
+                    </div>
+                    <div id="topics-list" style="display: flex; flex-direction: column; gap: 0.8rem;">
+                        <div style="text-align: center; color: #888;">Loading topics...</div>
+                    </div>
+                </div>
+
+                <div id="consumers-tab" class="code-block hidden" style="background: transparent; border: none; padding: 0;">
+                    <div id="consumers-list" style="display: flex; flex-direction: column; gap: 0.8rem;">
+                        <div style="text-align: center; color: #888;">Loading consumer groups...</div>
+                    </div>
                 </div>
             </div>
 
-            <div class="account-management" style="border-top: 1px solid rgba(255,255,255,0.1);">
-                <button id="regenerate-btn" class="primary-btn btn-warning">🔄 Regenerate Password</button>
-                <button id="delete-btn" class="primary-btn btn-danger">🗑️ Delete Account</button>
+            <div class="account-management" style="border-top: 1px solid rgba(255,255,255,0.1); justify-content: center; flex-direction: row;">
+                <button id="regenerate-btn" class="primary-btn btn-warning" style="width: auto;">🔄 Regenerate Password</button>
+                <button id="delete-btn" class="primary-btn btn-danger" style="width: auto;">🗑️ Delete Account</button>
             </div>
         </div>
         
@@ -281,6 +296,19 @@ producer.close();</code></pre>
             </div>
             <div class="modal-actions">
                 <button id="close-data-modal" class="primary-btn" style="background: rgba(255,255,255,0.1);">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Produce Modal -->
+    <div id="produce-modal" class="modal">
+        <div class="modal-content" style="max-width: 500px; width: 100%;">
+            <h3 id="produce-modal-title">Produce Message</h3>
+            <p style="margin-bottom: 1rem; font-size: 0.85rem; color: #aaa;">Enter JSON to send to this topic.</p>
+            <textarea id="produce-payload" rows="5" style="width: 100%; padding: 0.8rem; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); color: #a5d6ff; border-radius: 8px; font-family: monospace; margin-bottom: 1.5rem;">{"hello": "world"}</textarea>
+            <div class="modal-actions">
+                <button id="cancel-produce-modal" class="primary-btn" style="background: rgba(255,255,255,0.1);">Cancel</button>
+                <button id="send-produce-modal" class="primary-btn">Send Message</button>
             </div>
         </div>
     </div>
@@ -346,20 +374,29 @@ producer.close();</code></pre>
                         actionsDiv.style.display = 'flex';
                         actionsDiv.style.gap = '0.5rem';
 
+                        const sendBtn = document.createElement('button');
+                        sendBtn.innerText = 'Send Msg';
+                        sendBtn.className = 'primary-btn';
+                        sendBtn.style.padding = '0.4rem 0.8rem';
+                        sendBtn.style.fontSize = '0.8rem';
+                        sendBtn.onclick = () => openProduceModal(topic);
+
                         const viewBtn = document.createElement('button');
                         viewBtn.innerText = 'View Data';
                         viewBtn.className = 'primary-btn';
                         viewBtn.style.padding = '0.4rem 0.8rem';
                         viewBtn.style.fontSize = '0.8rem';
+                        viewBtn.style.background = 'rgba(255, 255, 255, 0.1)';
                         viewBtn.onclick = () => viewTopicData(topic);
 
                         const delBtn = document.createElement('button');
-                        delBtn.innerText = 'Delete';
+                        delBtn.innerText = 'Del';
                         delBtn.className = 'primary-btn btn-danger';
                         delBtn.style.padding = '0.4rem 0.8rem';
                         delBtn.style.fontSize = '0.8rem';
                         delBtn.onclick = () => deleteTopic(topic);
 
+                        actionsDiv.appendChild(sendBtn);
                         actionsDiv.appendChild(viewBtn);
                         actionsDiv.appendChild(delBtn);
 
@@ -459,6 +496,90 @@ producer.close();</code></pre>
             document.getElementById('data-modal').classList.remove('show');
         });
 
+        let currentProduceTopic = '';
+        const openProduceModal = (topic) => {
+            currentProduceTopic = topic;
+            document.getElementById('produce-modal-title').innerText = `Produce to ${topic}`;
+            document.getElementById('produce-modal').classList.add('show');
+        };
+
+        document.getElementById('cancel-produce-modal').addEventListener('click', () => {
+            document.getElementById('produce-modal').classList.remove('show');
+        });
+
+        document.getElementById('send-produce-modal').addEventListener('click', async (e) => {
+            const btn = e.target;
+            const payload = document.getElementById('produce-payload').value;
+            btn.disabled = true;
+            btn.innerText = 'Sending...';
+
+            try {
+                const res = await fetch(`/api/topics/${currentProduceTopic}/produce`, {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${currentAccessToken}`
+                    },
+                    body: JSON.stringify({ payload })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    document.getElementById('produce-modal').classList.remove('show');
+                } else {
+                    alert('Error: ' + data.error);
+                }
+            } catch(err) {
+                alert('Server error while sending message.');
+            } finally {
+                btn.disabled = false;
+                btn.innerText = 'Send Message';
+            }
+        });
+
+        const loadConsumerGroups = async () => {
+            const listEl = document.getElementById('consumers-list');
+            listEl.innerHTML = '<div style="text-align: center; color: #888;">Loading consumer groups...</div>';
+            try {
+                const res = await fetch('/api/consumer-groups', {
+                    headers: { 'Authorization': `Bearer ${currentAccessToken}` }
+                });
+                const data = await res.json();
+                if (data.success) {
+                    listEl.innerHTML = '';
+                    if (data.groups.length === 0) {
+                        listEl.innerHTML = '<div style="text-align: center; color: #888;">No active consumer groups found.</div>';
+                    }
+                    data.groups.forEach(groupInfo => {
+                        const div = document.createElement('div');
+                        div.style.background = 'rgba(255,255,255,0.05)';
+                        div.style.padding = '1rem';
+                        div.style.borderRadius = '8px';
+                        
+                        const title = document.createElement('h4');
+                        title.innerText = groupInfo.group;
+                        title.style.margin = '0 0 0.5rem 0';
+                        title.style.color = '#fff';
+                        
+                        const code = document.createElement('pre');
+                        code.innerText = groupInfo.details;
+                        code.style.fontSize = '0.8rem';
+                        code.style.color = '#a5d6ff';
+                        code.style.overflowX = 'auto';
+                        
+                        div.appendChild(title);
+                        div.appendChild(code);
+                        listEl.appendChild(div);
+                    });
+                } else {
+                    listEl.innerHTML = `<div style="text-align: center; color: #ff4757;">Failed to load consumers.</div>`;
+                }
+            } catch(err) {
+                listEl.innerHTML = '<div style="text-align: center; color: #ff4757;">Failed to load consumers.</div>';
+            }
+        };
+
+        document.getElementById('consumers-tab-btn').addEventListener('click', loadConsumerGroups);
+
         const populateDashboard = (data) => {
             document.getElementById('res-username').innerText = data.username;
             document.getElementById('res-password').innerText = data.password;
@@ -469,16 +590,33 @@ producer.close();</code></pre>
             document.querySelectorAll('.ins-pass').forEach(el => el.innerText = data.password);
             document.querySelectorAll('.ins-top').forEach(el => el.innerText = data.topic);
             
-            // If returning user, hide the copy button for the masked password
             const passCopyBtn = document.querySelector('button[data-copy="res-password"]');
+            const downloadBtn = document.getElementById('download-env-btn');
+            
             if (data.password === '****************') {
                 passCopyBtn.style.display = 'none';
+                downloadBtn.style.display = 'none';
                 document.getElementById('res-password').style.color = '#888';
                 document.getElementById('res-password').style.fontStyle = 'italic';
             } else {
                 passCopyBtn.style.display = 'inline-block';
+                downloadBtn.style.display = 'inline-block';
                 document.getElementById('res-password').style.color = '';
                 document.getElementById('res-password').style.fontStyle = 'normal';
+                
+                // Set up download env logic
+                downloadBtn.onclick = () => {
+                    const envContent = `KAFKA_BROKERS=broker.subartaghosh.co.in:9092\nKAFKA_USERNAME=${data.username}\nKAFKA_PASSWORD=${data.password}\nKAFKA_TOPIC=${data.topic}\n`;
+                    const blob = new Blob([envContent], { type: 'text/plain' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = '.env';
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                };
             }
 
             document.getElementById('login-card').style.display = 'none';
@@ -617,6 +755,22 @@ producer.close();</code></pre>
                         codeBox.style.background = '';
                         codeBox.style.borderColor = '';
                     }, 2000);
+                    
+                    // Show and configure download btn
+                    const downloadBtn = document.getElementById('download-env-btn');
+                    downloadBtn.style.display = 'inline-block';
+                    downloadBtn.onclick = () => {
+                        const envContent = `KAFKA_BROKERS=broker.subartaghosh.co.in:9092\nKAFKA_USERNAME=${document.getElementById('res-username').innerText}\nKAFKA_PASSWORD=${data.password}\nKAFKA_TOPIC=${document.getElementById('res-topic').innerText}\n`;
+                        const blob = new Blob([envContent], { type: 'text/plain' });
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = '.env';
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                        URL.revokeObjectURL(url);
+                    };
                 } else {
                     alert(data.error);
                 }

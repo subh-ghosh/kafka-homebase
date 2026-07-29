@@ -415,6 +415,58 @@ app.get('/api/topics/:topic/data', async (req, res) => {
     }
 });
 
+app.post('/api/topics/:topic/produce', async (req, res) => {
+    const username = await verifyUserHelper(req, res);
+    if (!username) return;
+    const topic = req.params.topic;
+    if (!topic.startsWith(`${username}.`)) {
+        return res.status(403).json({ error: 'You do not own this topic.' });
+    }
+    const { payload } = req.body;
+    if (!payload) return res.status(400).json({ error: 'Missing payload' });
+
+    try {
+        const adminProps = '/etc/kafka/admin.properties';
+        if (fs.existsSync('/opt/kafka/bin/kafka-console-producer.sh')) {
+            const tmpFile = `/tmp/${username}_${Date.now()}.json`;
+            fs.writeFileSync(tmpFile, typeof payload === "string" ? payload : JSON.stringify(payload));
+            await runCommand(`/opt/kafka/bin/kafka-console-producer.sh --bootstrap-server broker.subartaghosh.co.in:9092 --producer.config ${adminProps} --topic ${topic} < ${tmpFile}`);
+            fs.unlinkSync(tmpFile);
+        }
+        res.json({ success: true });
+    } catch (err) {
+        console.error("Produce error:", err);
+        res.status(500).json({ error: 'Failed to produce message' });
+    }
+});
+
+app.get('/api/consumer-groups', async (req, res) => {
+    const username = await verifyUserHelper(req, res);
+    if (!username) return;
+
+    try {
+        const adminProps = '/etc/kafka/admin.properties';
+        let groups = [];
+        if (fs.existsSync('/opt/kafka/bin/kafka-consumer-groups.sh')) {
+            const listOut = await runCommand(`/opt/kafka/bin/kafka-consumer-groups.sh --bootstrap-server broker.subartaghosh.co.in:9092 --command-config ${adminProps} --list`);
+            const userGroups = listOut.split('\n').map(g => g.trim()).filter(g => g.startsWith(username));
+            
+            for (const group of userGroups) {
+                try {
+                    const descOut = await runCommand(`/opt/kafka/bin/kafka-consumer-groups.sh --bootstrap-server broker.subartaghosh.co.in:9092 --command-config ${adminProps} --describe --group ${group}`);
+                    groups.push({ group, details: descOut });
+                } catch(e) {
+                    console.error("Describe failed for group", group, e);
+                }
+            }
+        }
+        res.json({ success: true, groups });
+    } catch (err) {
+        console.error("Consumer groups error:", err);
+        res.status(500).json({ error: 'Failed to fetch consumer groups' });
+    }
+});
+
 // -----------------------------------------------------
 // ADMIN ROUTES
 // -----------------------------------------------------
