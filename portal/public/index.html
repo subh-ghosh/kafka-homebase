@@ -297,6 +297,18 @@ producer.close();</code></pre>
             document.querySelectorAll('.ins-pass').forEach(el => el.innerText = data.password);
             document.querySelectorAll('.ins-top').forEach(el => el.innerText = data.topic);
             
+            // If returning user, hide the copy button for the masked password
+            const passCopyBtn = document.querySelector('button[data-copy="res-password"]');
+            if (data.password === '****************') {
+                passCopyBtn.style.display = 'none';
+                document.getElementById('res-password').style.color = '#888';
+                document.getElementById('res-password').style.fontStyle = 'italic';
+            } else {
+                passCopyBtn.style.display = 'inline-block';
+                document.getElementById('res-password').style.color = '';
+                document.getElementById('res-password').style.fontStyle = 'normal';
+            }
+
             document.getElementById('login-card').style.display = 'none';
             document.getElementById('setup-card').style.display = 'none';
             document.getElementById('loading-card').style.display = 'none';
@@ -418,6 +430,11 @@ producer.close();</code></pre>
                     document.getElementById('res-password').innerText = data.password;
                     document.querySelectorAll('.ins-pass').forEach(el => el.innerText = data.password);
                     
+                    const passCopyBtn = document.querySelector('button[data-copy="res-password"]');
+                    passCopyBtn.style.display = 'inline-block';
+                    document.getElementById('res-password').style.color = '';
+                    document.getElementById('res-password').style.fontStyle = 'normal';
+
                     const codeBox = document.getElementById('res-password').parentElement;
                     codeBox.style.background = 'rgba(46, 213, 115, 0.2)';
                     codeBox.style.borderColor = '#2ed573';

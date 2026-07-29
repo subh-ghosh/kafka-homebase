@@ -106,7 +106,7 @@ app.get('/api/user', async (req, res) => {
         res.json({
             exists: true,
             username: foundUser,
-            password: foundData.password || '',
+            password: '****************',
             topic: foundData.topicName || `${foundUser}.events`,
             accessToken // Give access token back to frontend to reuse
         });
@@ -166,7 +166,6 @@ app.post('/api/register', async (req, res) => {
         db.user_mappings[username] = {
             githubId: githubId,
             githubHandle: githubHandle,
-            password: password,
             topicName: topicName,
             created_at: new Date().toISOString()
         };
@@ -219,7 +218,7 @@ app.post('/api/regenerate', async (req, res) => {
             await runCommand(`/opt/kafka/bin/kafka-configs.sh --bootstrap-server broker.subartaghosh.co.in:9092 --command-config ${adminProps} --alter --add-config "SCRAM-SHA-512=[iterations=4096,password=${newPassword}]" --entity-type users --entity-name ${foundUser}`);
         }
 
-        db.user_mappings[foundUser].password = newPassword;
+        db.user_mappings[foundUser].updated_at = new Date().toISOString();
         fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2));
 
         res.json({ success: true, password: newPassword });
