@@ -98,7 +98,8 @@
                         <tr>
                             <th>Kafka Username</th>
                             <th>GitHub Handle</th>
-                            <th>Base Topic</th>
+                            <th>Storage (MB)</th>
+                            <th>Quota Status</th>
                             <th>Created At</th>
                             <th>Actions</th>
                         </tr>
@@ -151,10 +152,17 @@
                 for (const [username, info] of Object.entries(data.users)) {
                     const tr = document.createElement('tr');
                     
+                    const storageStr = info.storageMB !== undefined ? `${info.storageMB} MB` : '0.00 MB';
+                    const isExceeded = info.quotaExceeded;
+                    const quotaBadge = isExceeded 
+                        ? `<span style="color: #ff4757; font-weight: bold;">BLOCKED</span>` 
+                        : `<span style="color: #2ed573;">OK</span>`;
+
                     tr.innerHTML = `
                         <td style="font-family: monospace; color: #a5d6ff;">${username}</td>
                         <td>${info.githubHandle || info.githubId}</td>
-                        <td><code>${info.topicName}</code></td>
+                        <td style="font-family: monospace;">${storageStr}</td>
+                        <td>${quotaBadge}</td>
                         <td>${new Date(info.created_at).toLocaleDateString()}</td>
                         <td>
                             <button class="primary-btn btn-danger" style="padding: 0.4rem 0.8rem; font-size: 0.8rem;" onclick="deleteUser('${username}')">Delete User</button>
