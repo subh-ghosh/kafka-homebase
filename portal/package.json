@@ -1,14 +1,24 @@
 {
-  "name": "portal",
+  "name": "streambase-portal",
   "version": "1.0.0",
-  "description": "",
+  "description": "StreamBase Control Plane & Self-Service Student Portal",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node index.js"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/subh-ghosh/kafka-homebase.git"
+  },
+  "keywords": [
+    "streambase",
+    "kafka-portal",
+    "oauth",
+    "scram-sha-512",
+    "express"
+  ],
+  "author": "Subarta Ghosh",
+  "license": "MIT",
   "type": "commonjs",
   "dependencies": {
     "axios": "^1.18.1",
