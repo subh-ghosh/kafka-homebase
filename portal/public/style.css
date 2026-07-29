@@ -347,3 +347,10 @@ input:focus {
 
 .github-btn { background: #24292e; color: white; }
 .github-btn:hover { background: #1b1f23; }
+
+.code-tabs { display: flex; gap: 0.5rem; margin-bottom: 0.5rem; }
+.tab-btn { background: rgba(255,255,255,0.05); color: #888; border: none; padding: 0.5rem 1rem; border-radius: 6px; cursor: pointer; }
+.tab-btn.active { background: rgba(255,255,255,0.15); color: white; }
+.code-block { background: #1a1b26; padding: 1rem; border-radius: 8px; overflow-x: auto; font-family: monospace; font-size: 0.85rem; color: #a9b1d6; }
+.code-block.hidden { display: none; }
+.code-block pre { margin: 0; }

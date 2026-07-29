@@ -35,7 +35,7 @@
             <div id="login-error" class="error"></div>
         </div>
 
-        <!-- Registration Form Card (Shown after GitHub redirect) -->
+        <!-- Registration Form Card -->
         <div id="setup-card" class="glass-card hidden">
             <h2 style="text-align: center; margin-bottom: 1.5rem;">GitHub Verified!</h2>
             <form id="register-form">
@@ -54,12 +54,12 @@
         </div>
 
         <!-- Result Card -->
-        <div id="result-card" class="glass-card hidden">
+        <div id="result-card" class="glass-card hidden" style="max-width: 700px; margin: 0 auto;">
             <div class="success-header">
                 <div class="check-icon">✓</div>
                 <h2>Account Provisioned!</h2>
             </div>
-            <p>Save these details immediately. You will not be able to see this password again.</p>
+            <p style="text-align: center; color: #ff4757; font-weight: bold; margin-bottom: 1.5rem;">Save these details immediately. You will not be able to see this password again.</p>
             
             <div class="credentials-grid">
                 <div class="cred-item">
@@ -95,12 +95,67 @@
                 </div>
             </div>
             
-            <div class="instructions">
-                <h3>Connection Details</h3>
-                <ul>
-                    <li><strong>Protocol:</strong> <code>SASL_SSL</code></li>
-                    <li><strong>Mechanism:</strong> <code>SCRAM-SHA-512</code></li>
-                </ul>
+            <div class="instructions" style="margin-top: 2rem; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 1.5rem;">
+                <h3 style="margin-bottom: 1rem;">How to Connect</h3>
+                <p style="font-size: 0.9rem; color: #bbb; margin-bottom: 1rem;">Your permissions allow you to Read, Write, and Create <strong>any topic</strong> that starts with <code><span id="res-prefix"></span>.</code>. You do not need a dashboard to create topics—simply create them directly from your code!</p>
+                
+                <div class="code-tabs">
+                    <button class="tab-btn active" data-target="code-python">Python</button>
+                    <button class="tab-btn" data-target="code-node">Node.js</button>
+                    <button class="tab-btn" data-target="code-java">Java / Spring</button>
+                </div>
+
+                <div id="code-python" class="code-block active">
+<pre><code>from confluent_kafka import Producer
+
+conf = {
+    'bootstrap.servers': '<span class="ins-boot"></span>',
+    'security.protocol': 'SASL_SSL',
+    'sasl.mechanisms': 'SCRAM-SHA-512',
+    'sasl.username': '<span class="ins-user"></span>',
+    'sasl.password': '<span class="ins-pass"></span>'
+}
+
+producer = Producer(conf)
+producer.produce('<span class="ins-top"></span>', key="key", value="hello world")
+producer.flush()</code></pre>
+                </div>
+
+                <div id="code-node" class="code-block hidden">
+<pre><code>const { Kafka } = require('kafkajs')
+
+const kafka = new Kafka({
+  clientId: 'my-app',
+  brokers: ['<span class="ins-boot"></span>'],
+  ssl: true,
+  sasl: {
+    mechanism: 'scram-sha-512',
+    username: '<span class="ins-user"></span>',
+    password: '<span class="ins-pass"></span>'
+  }
+})
+
+const producer = kafka.producer()
+await producer.connect()
+await producer.send({
+  topic: '<span class="ins-top"></span>',
+  messages: [{ value: 'hello world' }],
+})</code></pre>
+                </div>
+
+                <div id="code-java" class="code-block hidden">
+<pre><code>Properties props = new Properties();
+props.put("bootstrap.servers", "<span class="ins-boot"></span>");
+props.put("security.protocol", "SASL_SSL");
+props.put("sasl.mechanism", "SCRAM-SHA-512");
+props.put("sasl.jaas.config", 
+  "org.apache.kafka.common.security.scram.ScramLoginModule required " +
+  "username=\"<span class="ins-user"></span>\" password=\"<span class="ins-pass"></span>\";");
+
+Producer&lt;String, String&gt; producer = new KafkaProducer&lt;&gt;(props);
+producer.send(new ProducerRecord&lt;&gt;("<span class="ins-top"></span>", "key", "hello world"));
+producer.close();</code></pre>
+                </div>
             </div>
         </div>
     </main>
@@ -119,6 +174,20 @@
             });
         });
 
+        // Tab Switching Logic
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+                document.querySelectorAll('.code-block').forEach(c => c.classList.add('hidden'));
+                document.querySelectorAll('.code-block').forEach(c => c.classList.remove('active'));
+                
+                btn.classList.add('active');
+                const targetId = btn.getAttribute('data-target');
+                document.getElementById(targetId).classList.remove('hidden');
+                document.getElementById(targetId).classList.add('active');
+            });
+        });
+
         // DOM Elements
         const loginCard = document.getElementById('login-card');
         const setupCard = document.getElementById('setup-card');
@@ -129,20 +198,15 @@
         const errorMsg = document.getElementById('error-message');
         const loginErrorMsg = document.getElementById('login-error');
 
-        // Check if returning from GitHub with a code
         const urlParams = new URLSearchParams(window.location.search);
         const githubCode = urlParams.get('code');
 
         if (githubCode) {
-            // Hide login, show setup
             loginCard.style.display = 'none';
             setupCard.classList.remove('hidden');
-            
-            // Clean up the URL so the code doesn't stay there
             window.history.replaceState({}, document.title, "/");
         }
 
-        // GitHub Login Logic
         githubBtn.addEventListener('click', async () => {
             githubBtn.classList.add('loading');
             try {
@@ -162,12 +226,10 @@
             }
         });
 
-        // Form submission logic
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
             errorMsg.innerText = '';
             errorMsg.classList.remove('show');
-            
             submitBtn.classList.add('loading');
             
             const username = document.getElementById('username').value;
@@ -186,6 +248,13 @@
                     document.getElementById('res-username').innerText = data.username;
                     document.getElementById('res-password').innerText = data.password;
                     document.getElementById('res-topic').innerText = data.topic;
+                    document.getElementById('res-prefix').innerText = data.username;
+
+                    // Inject into code snippets
+                    document.querySelectorAll('.ins-boot').forEach(el => el.innerText = data.bootstrap);
+                    document.querySelectorAll('.ins-user').forEach(el => el.innerText = data.username);
+                    document.querySelectorAll('.ins-pass').forEach(el => el.innerText = data.password);
+                    document.querySelectorAll('.ins-top').forEach(el => el.innerText = data.topic);
 
                     setupCard.classList.add('hidden');
                     setTimeout(() => {
