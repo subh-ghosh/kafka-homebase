@@ -32,7 +32,7 @@ const shellQueue = new PQueue({ concurrency: 2 });
 const kafkaClient = new Kafka({
     clientId: 'portal-admin',
     brokers: ['broker.subartaghosh.co.in:9092'],
-    ssl: true,
+    ssl: { rejectUnauthorized: false },
     sasl: {
         mechanism: 'scram-sha-512',
         username: ADMIN_USER,
@@ -106,22 +106,30 @@ const verifyUserHelper = async (req, res) => {
 };
 
 // Get current user credentials
+// Accepts either a one-time OAuth code OR an existing gho_ access token
 app.get('/api/user', async (req, res) => {
     const authHeader = req.headers['authorization'];
     if (!authHeader) return res.status(401).json({ error: 'Missing token' });
-    const code = authHeader.split(' ')[1];
+    const token = authHeader.split(' ')[1];
 
     let accessToken = null;
-    try {
-        const tokenRes = await axios.post('https://github.com/login/oauth/access_token', {
-            client_id: GITHUB_CLIENT_ID,
-            client_secret: GITHUB_CLIENT_SECRET,
-            code: code
-        }, { headers: { Accept: 'application/json' } });
-        if (tokenRes.data.error) return res.status(401).json({ error: 'Token exchange failed' });
-        accessToken = tokenRes.data.access_token;
-    } catch (err) {
-        return res.status(500).json({ error: 'GitHub auth failed' });
+
+    // If already a GitHub access token (starts with gho_), use directly
+    if (token.startsWith('gho_')) {
+        accessToken = token;
+    } else {
+        // Treat as a one-time OAuth code and exchange it
+        try {
+            const tokenRes = await axios.post('https://github.com/login/oauth/access_token', {
+                client_id: GITHUB_CLIENT_ID,
+                client_secret: GITHUB_CLIENT_SECRET,
+                code: token
+            }, { headers: { Accept: 'application/json' } });
+            if (tokenRes.data.error) return res.status(401).json({ error: 'Token exchange failed' });
+            accessToken = tokenRes.data.access_token;
+        } catch (err) {
+            return res.status(500).json({ error: 'GitHub auth failed' });
+        }
     }
 
     let githubId = null;
@@ -129,7 +137,7 @@ app.get('/api/user', async (req, res) => {
         const userRes = await axios.get('https://api.github.com/user', { headers: { Authorization: `Bearer ${accessToken}` } });
         githubId = userRes.data.id.toString();
     } catch (err) {
-        return res.status(500).json({ error: 'GitHub profile failed' });
+        return res.status(401).json({ error: 'Invalid or expired GitHub token' });
     }
 
     const foundData = await db.getUserByGithubId(githubId);
@@ -139,7 +147,8 @@ app.get('/api/user', async (req, res) => {
             username: foundData.username,
             password: '****************',
             topic: foundData.topicName,
-            accessToken // Give access token back to frontend to reuse
+            storageMB: foundData.storageMB || 0,
+            accessToken // Return access token for frontend reuse
         });
     } else {
         res.json({ exists: false, accessToken });
