@@ -481,7 +481,10 @@
 
         <!-- Quick Connect Card -->
         <div class="card">
-            <div class="card-header">Quick Connect</div>
+            <div class="card-header">
+                <span>Quick Connect</span>
+                <button class="btn btn-sm btn-yellow" id="copy-code-btn" onclick="copyActiveCode(this)">📋 Copy Code</button>
+            </div>
             <div class="tabs-bar">
                 <div class="tabs" id="snippet-tabs">
                     <button class="tab-btn active" data-target="tab-python">Python</button>
@@ -627,6 +630,22 @@ const copyText = async (text, btn) => {
         btn.innerText = '✅';
         setTimeout(() => btn.innerText = old, 1400);
         showToast('Copied!', 1500);
+    } catch { showToast('Copy failed — select & copy manually.', 3000); }
+};
+
+const copyActiveCode = async (btn) => {
+    const activeTab = document.querySelector('.tab-btn.active');
+    if (!activeTab) return;
+    const targetId = activeTab.dataset.target;
+    const codeBlock = document.querySelector(`#${targetId} .code-block`);
+    if (!codeBlock) return;
+    const text = codeBlock.innerText;
+    try {
+        await navigator.clipboard.writeText(text);
+        const old = btn.innerHTML;
+        btn.innerHTML = '✅ Copied!';
+        setTimeout(() => btn.innerHTML = old, 1500);
+        showToast('Code snippet copied!', 1800);
     } catch { showToast('Copy failed — select & copy manually.', 3000); }
 };
 
