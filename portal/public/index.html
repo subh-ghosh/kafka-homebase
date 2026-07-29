@@ -3,910 +3,1085 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Kafka Developer Portal</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css">
+    <title>KafkaBase — Free Kafka for Students & Developers</title>
+    <meta name="description" content="Get free, production-grade Apache Kafka credentials. Real SASL/SSL broker, 3-partition topics, zero credit card. Built for students tired of paying for Confluent Cloud.">
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700;800&family=DM+Mono:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet">
     <style>
-        .footer-support {
-            text-align: center;
-            margin-top: 3rem;
-            color: var(--text-muted);
-            font-size: 0.85rem;
-        }
-        .footer-support a {
-            color: #ff4757;
-            text-decoration: none;
-            font-weight: 600;
-        }
-        .footer-support a:hover {
-            text-decoration: underline;
-        }
-        .account-management {
-            margin-top: 2rem;
-            padding-top: 1.5rem;
-            border-top: 1px solid rgba(255,255,255,0.1);
-            display: flex;
-            gap: 1rem;
-            justify-content: center;
-        }
-        .btn-warning {
-            background: rgba(255, 159, 67, 0.2);
-            color: #ff9f43;
-            border: 1px solid #ff9f43;
-        }
-        .btn-warning:hover {
-            background: rgba(255, 159, 67, 0.4);
-        }
-        .btn-danger {
-            background: rgba(238, 82, 83, 0.2);
-            color: #ee5253;
-            border: 1px solid #ee5253;
-        }
-        .btn-danger:hover {
-            background: rgba(238, 82, 83, 0.4);
-        }
-        .modal {
-            display: none;
-            position: fixed;
-            z-index: 1000;
-            left: 0;
-            top: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0,0,0,0.8);
-            backdrop-filter: blur(5px);
-            align-items: center;
-            justify-content: center;
-        }
-        .modal.show {
-            display: flex;
-        }
-        .modal-content {
-            background: #1e272e;
-            padding: 2rem;
-            border-radius: 12px;
-            border: 1px solid rgba(255,255,255,0.1);
-            max-width: 400px;
-            text-align: center;
-        }
-        .modal-content h3 {
-            margin-bottom: 1rem;
-            color: #ff4757;
-        }
-        .modal-actions {
-            display: flex;
-            gap: 1rem;
-            margin-top: 1.5rem;
-            justify-content: center;
-        }
+    /* ── RESET ─────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+
+    /* ── DESIGN TOKENS ─────────────────────────────────── */
+    :root {
+        --yellow:  #FFE500;
+        --black:   #111111;
+        --white:   #FFFFFF;
+        --bg:      #FFFEF2;
+        --red:     #FF3B30;
+        --green:   #1DB954;
+        --blue:    #0055FF;
+        --border:  3px solid #111111;
+        --shadow:  5px 5px 0 #111111;
+        --shadow-lg: 8px 8px 0 #111111;
+        --mono:    'DM Mono', monospace;
+        --sans:    'Space Grotesk', sans-serif;
+    }
+
+    /* ── BASE ──────────────────────────────────────────── */
+    body { font-family: var(--sans); background: var(--bg); color: var(--black); line-height: 1.5; }
+    .hidden { display: none !important; }
+    a { color: inherit; }
+
+    /* ── NAVBAR ─────────────────────────────────────────── */
+    .navbar {
+        position: sticky; top: 0; z-index: 100;
+        background: var(--black);
+        border-bottom: 3px solid var(--black);
+        height: 56px;
+        display: flex; align-items: center;
+    }
+    .navbar-inner {
+        max-width: 1140px; margin: 0 auto; width: 100%;
+        padding: 0 1.5rem;
+        display: flex; align-items: center; justify-content: space-between;
+    }
+    .nav-logo {
+        font-size: 1.1rem; font-weight: 800; letter-spacing: 0.06em;
+        color: var(--yellow); text-decoration: none;
+    }
+    .nav-logo span { color: var(--white); }
+    .nav-right { display: flex; align-items: center; gap: 1rem; }
+    .nav-user { font-family: var(--mono); font-size: 0.75rem; color: #999; }
+
+    /* ── BUTTONS ─────────────────────────────────────────── */
+    .btn {
+        display: inline-flex; align-items: center; gap: 0.5rem;
+        padding: 0.65rem 1.25rem;
+        font-family: var(--sans); font-weight: 700; font-size: 0.88rem;
+        letter-spacing: 0.02em;
+        border: var(--border); box-shadow: 4px 4px 0 var(--black);
+        cursor: pointer; transition: all 0.1s ease;
+        text-decoration: none; background: var(--white); color: var(--black);
+    }
+    .btn:hover  { transform: translate(-2px,-2px); box-shadow: 6px 6px 0 var(--black); }
+    .btn:active { transform: translate(2px,2px);   box-shadow: 2px 2px 0 var(--black); }
+    .btn-yellow { background: var(--yellow); }
+    .btn-black  { background: var(--black); color: var(--white); box-shadow: 4px 4px 0 #555; }
+    .btn-black:hover { box-shadow: 6px 6px 0 #555; }
+    .btn-red    { background: var(--red); color: var(--white); box-shadow: 4px 4px 0 #8B0000; }
+    .btn-red:hover { box-shadow: 6px 6px 0 #8B0000; }
+    .btn-green  { background: var(--green); color: var(--white); box-shadow: 4px 4px 0 #145c30; }
+    .btn-green:hover { box-shadow: 6px 6px 0 #145c30; }
+    .btn-lg { padding: 1rem 2rem; font-size: 1.05rem; box-shadow: 6px 6px 0 var(--black); }
+    .btn-sm { padding: 0.35rem 0.75rem; font-size: 0.78rem; box-shadow: 3px 3px 0 var(--black); }
+    .btn-sm:hover { box-shadow: 5px 5px 0 var(--black); }
+
+    /* ── CARDS ─────────────────────────────────────────── */
+    .card { background: var(--white); border: var(--border); box-shadow: var(--shadow); }
+    .card-body { padding: 1.5rem; }
+    .card-header {
+        padding: 0.8rem 1.25rem;
+        border-bottom: var(--border);
+        background: var(--black); color: var(--white);
+        font-weight: 800; font-size: 0.78rem; letter-spacing: 0.12em; text-transform: uppercase;
+        display: flex; align-items: center; justify-content: space-between;
+    }
+
+    /* ── INPUTS ─────────────────────────────────────────── */
+    .input {
+        width: 100%; padding: 0.7rem 0.9rem;
+        font-family: var(--mono); font-size: 0.88rem;
+        border: var(--border); background: var(--bg); color: var(--black);
+        outline: none; transition: box-shadow 0.1s;
+    }
+    .input:focus { box-shadow: 3px 3px 0 var(--black); }
+
+    /* ── LABELS ─────────────────────────────────────────── */
+    .label {
+        display: block; margin-bottom: 0.35rem;
+        font-size: 0.68rem; font-weight: 700; letter-spacing: 0.12em;
+        text-transform: uppercase; color: #666;
+    }
+
+    /* ── BADGES ─────────────────────────────────────────── */
+    .badge {
+        display: inline-block; padding: 0.15rem 0.55rem;
+        font-size: 0.68rem; font-weight: 700; letter-spacing: 0.08em;
+        border: 2px solid var(--black);
+    }
+    .badge-yellow { background: var(--yellow); }
+    .badge-green  { background: var(--green);  color: var(--white); }
+    .badge-red    { background: var(--red);    color: var(--white); }
+    .badge-black  { background: var(--black);  color: var(--white); }
+
+    /* ── SECTION TITLE ──────────────────────────────────── */
+    .section-title {
+        display: inline-block;
+        padding: 0.25rem 0.7rem;
+        background: var(--black); color: var(--white);
+        font-size: 0.68rem; font-weight: 800; letter-spacing: 0.15em; text-transform: uppercase;
+        margin-bottom: 1rem;
+    }
+
+    /* ── HERO ─────────────────────────────────────────────────── */
+    #login-section { min-height: calc(100vh - 56px); display: flex; flex-direction: column; }
+
+    .hero {
+        flex: 1; display: flex; align-items: center;
+        border-bottom: var(--border);
+    }
+    .hero-inner {
+        max-width: 1140px; margin: 0 auto; width: 100%;
+        padding: 4rem 1.5rem;
+        display: grid; grid-template-columns: 1fr 1fr; gap: 5rem; align-items: center;
+    }
+    .hero-tag {
+        display: inline-block; background: var(--yellow); border: var(--border);
+        padding: 0.25rem 0.8rem; font-size: 0.68rem; font-weight: 800;
+        letter-spacing: 0.15em; text-transform: uppercase; margin-bottom: 1.5rem;
+    }
+    .hero h1 {
+        font-size: 5rem; font-weight: 800; line-height: 0.95;
+        letter-spacing: -0.03em; margin-bottom: 1.5rem;
+    }
+    .hero-sub {
+        font-size: 1rem; line-height: 1.65; color: #444;
+        margin-bottom: 2rem; max-width: 460px;
+    }
+    .hero-sub strong { color: var(--black); font-weight: 700; }
+    .hero-note { margin-top: 0.75rem; font-size: 0.75rem; color: #888; }
+    .hero-note span { font-family: var(--mono); background: #eee; padding: 0.1rem 0.3rem; }
+
+    /* Hero right — feature cards */
+    .feature-list { display: flex; flex-direction: column; gap: 0.9rem; }
+    .feature-item {
+        background: var(--white); border: var(--border); box-shadow: var(--shadow);
+        padding: 1.1rem 1.25rem; display: flex; gap: 1rem; align-items: flex-start;
+        transition: transform 0.1s, box-shadow 0.1s;
+    }
+    .feature-item:hover { transform: translate(-2px,-2px); box-shadow: 7px 7px 0 var(--black); }
+    .feature-icon { font-size: 1.4rem; line-height: 1; flex-shrink: 0; margin-top: 0.1rem; }
+    .feature-title { font-weight: 800; font-size: 0.82rem; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.2rem; }
+    .feature-desc { font-size: 0.82rem; color: #555; line-height: 1.5; }
+
+    /* ── DASHBOARD ─────────────────────────────────────── */
+    #dashboard-section {
+        max-width: 1140px; margin: 0 auto; width: 100%; padding: 2rem 1.5rem;
+    }
+
+    .dash-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 1.5rem; }
+
+    /* Credential value rows */
+    .cred-row { margin-bottom: 0.9rem; }
+    .cred-value {
+        display: flex; align-items: center; justify-content: space-between; gap: 0.5rem;
+        padding: 0.6rem 0.9rem;
+        background: var(--bg); border: 2px solid var(--black);
+        font-family: var(--mono); font-size: 0.85rem; font-weight: 500;
+        word-break: break-all;
+    }
+    .cred-value .cred-text { flex: 1; }
+    .copy-btn {
+        background: none; border: none; cursor: pointer;
+        font-size: 0.9rem; opacity: 0.5; padding: 0; flex-shrink: 0;
+        transition: opacity 0.1s;
+    }
+    .copy-btn:hover { opacity: 1; }
+
+    /* Storage bar */
+    .storage-wrap { margin: 1rem 0 0; }
+    .storage-meta {
+        display: flex; justify-content: space-between; align-items: center;
+        margin-bottom: 0.4rem;
+    }
+    .storage-track { height: 10px; background: #e0e0e0; border: 2px solid var(--black); }
+    .storage-fill { height: 100%; background: var(--yellow); transition: width 0.5s ease; }
+    .storage-fill.warn { background: #FF9500; }
+    .storage-fill.danger { background: var(--red); }
+
+    /* Account action buttons row */
+    .action-row { display: flex; gap: 0.75rem; margin-top: 1.1rem; }
+    .action-row .btn { flex: 1; justify-content: center; }
+
+    /* ── TABS ─────────────────────────────────────────── */
+    .tabs { display: flex; margin-bottom: 0; }
+    .tab-btn {
+        padding: 0.55rem 1.1rem;
+        font-family: var(--sans); font-weight: 700; font-size: 0.76rem;
+        letter-spacing: 0.06em; text-transform: uppercase;
+        border: var(--border); border-bottom: none;
+        background: var(--bg); cursor: pointer; margin-right: -3px;
+        transition: background 0.1s;
+    }
+    .tab-btn.active { background: var(--black); color: var(--white); }
+    .tab-btn:hover:not(.active) { background: var(--yellow); }
+
+    .tab-panel { border: var(--border); }
+    .tab-panel.hidden { display: none; }
+
+    /* Code block */
+    .code-block {
+        background: #1a1a1a; color: #f0f0f0;
+        font-family: var(--mono); font-size: 0.79rem; line-height: 1.65;
+        padding: 1.25rem 1.5rem;
+        overflow-x: auto; white-space: pre;
+        max-height: 280px; overflow-y: auto;
+    }
+
+    /* ── TOPICS SECTION ─────────────────────────────────── */
+    .create-row {
+        display: flex; align-items: stretch; gap: 0; padding: 1rem 1.25rem;
+        border-bottom: var(--border); background: var(--bg);
+    }
+    .topic-prefix-badge {
+        padding: 0 0.8rem; display: flex; align-items: center;
+        font-family: var(--mono); font-size: 0.83rem; font-weight: 500;
+        background: #e8e8e8; border: var(--border); border-right: none; color: #666;
+        white-space: nowrap;
+    }
+    .create-row .input { border-left: none; border-right: none; flex: 1; }
+
+    .topics-table { width: 100%; border-collapse: collapse; border: none; }
+    .topics-table th {
+        background: var(--black); color: var(--white);
+        padding: 0.6rem 1rem; text-align: left;
+        font-size: 0.68rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase;
+    }
+    .topics-table td {
+        padding: 0.75rem 1rem; border-top: 2px solid #e8e8e8;
+        font-size: 0.85rem; vertical-align: middle;
+    }
+    .topics-table tr:hover td { background: var(--bg); }
+    .topic-name-cell { font-family: var(--mono); font-weight: 500; }
+    .topic-actions { display: flex; gap: 0.5rem; }
+
+    /* ── CONSUMER GROUPS ────────────────────────────────── */
+    .cg-item {
+        display: flex; justify-content: space-between; align-items: center;
+        padding: 0.65rem 1rem;
+        border-top: 2px solid #e8e8e8;
+        font-family: var(--mono); font-size: 0.82rem;
+    }
+    .cg-item:first-child { border-top: none; }
+
+    /* ── MODALS ─────────────────────────────────────────── */
+    .modal-overlay {
+        display: none; position: fixed; inset: 0;
+        background: rgba(0,0,0,0.55); z-index: 200;
+        align-items: center; justify-content: center; padding: 1rem;
+    }
+    .modal-overlay.show { display: flex; }
+    .modal {
+        background: var(--white); border: var(--border); box-shadow: var(--shadow-lg);
+        width: 100%; max-width: 620px; max-height: 85vh;
+        display: flex; flex-direction: column;
+    }
+    .modal-head {
+        padding: 0.9rem 1.25rem; border-bottom: var(--border);
+        background: var(--black); color: var(--white);
+        display: flex; justify-content: space-between; align-items: center;
+    }
+    .modal-head-title {
+        font-family: var(--mono); font-size: 0.85rem; font-weight: 500;
+        overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .modal-close {
+        background: none; border: none; color: var(--white); font-size: 1.1rem;
+        cursor: pointer; opacity: 0.6; flex-shrink: 0; margin-left: 0.5rem;
+    }
+    .modal-close:hover { opacity: 1; }
+    .modal-body { padding: 1.25rem; overflow-y: auto; flex: 1; }
+    .modal-body pre {
+        font-family: var(--mono); font-size: 0.8rem; line-height: 1.65;
+        background: #1a1a1a; color: #f0f0f0;
+        padding: 1rem 1.25rem; overflow-x: auto; white-space: pre-wrap;
+        max-height: 340px; overflow-y: auto;
+    }
+    .modal-footer {
+        padding: 0.9rem 1.25rem; border-top: var(--border);
+        display: flex; justify-content: space-between; align-items: center; gap: 0.75rem;
+    }
+
+    /* Toggle */
+    .toggle-row { display: flex; align-items: center; gap: 0.5rem; font-size: 0.8rem; font-weight: 600; }
+    .toggle { width: 36px; height: 20px; appearance: none; background: #ccc; border: 2px solid var(--black); cursor: pointer; position: relative; transition: background 0.2s; flex-shrink: 0; }
+    .toggle:checked { background: var(--green); }
+    .toggle::after { content: ''; position: absolute; width: 12px; height: 12px; background: var(--black); top: 2px; left: 2px; transition: left 0.2s; }
+    .toggle:checked::after { left: 18px; }
+
+    /* ── TOAST ─────────────────────────────────────────── */
+    .toast {
+        position: fixed; bottom: 1.5rem; right: 1.5rem; z-index: 999;
+        background: var(--black); color: var(--white);
+        padding: 0.75rem 1.25rem; border: 2px solid var(--black);
+        font-size: 0.85rem; font-weight: 600;
+        transform: translateY(80px); opacity: 0;
+        transition: all 0.22s ease;
+        max-width: 320px;
+    }
+    .toast.show { transform: translateY(0); opacity: 1; }
+
+    /* ── ERROR TEXT ─────────────────────────────────────── */
+    .err-text { color: var(--red); font-size: 0.78rem; font-weight: 700; margin-top: 0.4rem; }
+
+    /* ── FOOTER ─────────────────────────────────────────── */
+    .site-footer {
+        margin-top: 4rem; padding: 1.5rem;
+        border-top: var(--border);
+        text-align: center; font-size: 0.8rem; color: #888;
+    }
+
+    /* ── RESPONSIVE ─────────────────────────────────────── */
+    @media (max-width: 800px) {
+        .hero-inner { grid-template-columns: 1fr; gap: 2.5rem; padding: 2.5rem 1rem; }
+        .hero h1 { font-size: 3rem; }
+        .dash-grid { grid-template-columns: 1fr; }
+        #dashboard-section { padding: 1rem; }
+        .create-row { flex-wrap: wrap; }
+    }
     </style>
 </head>
 <body>
-    <div style="position: absolute; top: 1.5rem; right: 1.5rem; display: flex; gap: 1rem; z-index: 10;">
-        <a id="logout-btn" href="#" style="display: none; color: rgba(255,255,255,0.5); text-decoration: none; font-size: 0.9rem; align-items: center; gap: 0.5rem; padding: 0.5rem 1rem; border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; background: rgba(0,0,0,0.2); transition: all 0.2s;" onmouseover="this.style.color='#fff'; this.style.borderColor='rgba(255,255,255,0.3)';" onmouseout="this.style.color='rgba(255,255,255,0.5)'; this.style.borderColor='rgba(255,255,255,0.1)';">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"></path></svg>
-            Log Out
-        </a>
-        <a href="/admin.html" style="color: rgba(255,255,255,0.5); text-decoration: none; font-size: 0.9rem; display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem 1rem; border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; background: rgba(0,0,0,0.2); transition: all 0.2s;" onmouseover="this.style.color='#fff'; this.style.borderColor='rgba(255,255,255,0.3)';" onmouseout="this.style.color='rgba(255,255,255,0.5)'; this.style.borderColor='rgba(255,255,255,0.1)';">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
-            Admin Login
-        </a>
+
+<!-- ── NAVBAR ──────────────────────────────────────────── -->
+<nav class="navbar">
+    <div class="navbar-inner">
+        <a href="/" class="nav-logo">KAFKA<span>BASE</span></a>
+        <div class="nav-right" id="nav-right">
+            <a href="/admin.html" style="color:#666;font-size:0.78rem;font-weight:700;text-decoration:none;letter-spacing:0.05em;">ADMIN ↗</a>
+        </div>
     </div>
-    
-    <div class="background-animation">
-        <div class="glow-orb red"></div>
-        <div class="glow-orb blue"></div>
+</nav>
+
+<!-- ── HERO / LOGIN ────────────────────────────────────── -->
+<section id="login-section">
+    <div class="hero">
+        <div class="hero-inner">
+            <!-- Left: headline + CTA -->
+            <div>
+                <div class="hero-tag">Free · Production-Grade · No Credit Card</div>
+                <h1>Kafka.<br>For Students.<br>For Free.</h1>
+                <p class="hero-sub">
+                    Stop paying <strong>$50/month</strong> for Confluent Cloud.
+                    KafkaBase gives you a real, SASL/SSL-secured Kafka broker,
+                    custom topics, and full client compatibility —
+                    <strong>completely free</strong>, forever.
+                </p>
+                <button id="github-login-btn" class="btn btn-yellow btn-lg">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" style="flex-shrink:0"><path d="M12 0C5.374 0 0 5.373 0 12c0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23A11.509 11.509 0 0112 5.803c1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.566 21.797 24 17.3 24 12c0-6.627-5.373-12-12-12z"/></svg>
+                    Login with GitHub
+                </button>
+                <p class="hero-note">Free forever · Max <span>200</span> users · <span>125 MB</span> storage quota · SCRAM-SHA-512</p>
+            </div>
+
+            <!-- Right: feature cards -->
+            <div class="feature-list">
+                <div class="feature-item">
+                    <div class="feature-icon">🔐</div>
+                    <div>
+                        <div class="feature-title">SASL/SSL Auth</div>
+                        <div class="feature-desc">SCRAM-SHA-512 encryption. The exact same protocol as Confluent, Aiven, and AWS MSK.</div>
+                    </div>
+                </div>
+                <div class="feature-item">
+                    <div class="feature-icon">⚡</div>
+                    <div>
+                        <div class="feature-title">3-Partition Topics</div>
+                        <div class="feature-desc">Real Kafka topics with 3 partitions. Create as many as your project needs under your prefix.</div>
+                    </div>
+                </div>
+                <div class="feature-item">
+                    <div class="feature-icon">🧑‍💻</div>
+                    <div>
+                        <div class="feature-title">Works With Any Client</div>
+                        <div class="feature-desc">kafkajs · confluent-kafka-python · kafka-go · Spring Kafka — copy-paste ready snippets included.</div>
+                    </div>
+                </div>
+                <div class="feature-item">
+                    <div class="feature-icon">🚀</div>
+                    <div>
+                        <div class="feature-title">30-Second Setup</div>
+                        <div class="feature-desc">GitHub OAuth → credentials in hand. No email, no forms, no waiting, no card.</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ── DASHBOARD ────────────────────────────────────────── -->
+<main id="dashboard-section" class="hidden">
+
+    <!-- Row 1: Credentials + Quick Connect -->
+    <div class="dash-grid">
+
+        <!-- Credentials Card -->
+        <div class="card">
+            <div class="card-header">
+                <span>Your Credentials</span>
+                <span class="badge badge-green" id="cred-status">ACTIVE</span>
+            </div>
+            <div class="card-body">
+
+                <div class="cred-row">
+                    <div class="label">Broker</div>
+                    <div class="cred-value">
+                        <span class="cred-text">broker.subartaghosh.co.in:9092</span>
+                        <button class="copy-btn" title="Copy" onclick="copyText('broker.subartaghosh.co.in:9092',this)">📋</button>
+                    </div>
+                </div>
+
+                <div class="cred-row">
+                    <div class="label">Username</div>
+                    <div class="cred-value">
+                        <span class="cred-text" id="cred-username">—</span>
+                        <button class="copy-btn" title="Copy" onclick="copyText(document.getElementById('cred-username').innerText,this)">📋</button>
+                    </div>
+                </div>
+
+                <div class="cred-row">
+                    <div class="label">Password</div>
+                    <div class="cred-value">
+                        <span class="cred-text" id="cred-password">••••••••••••••••</span>
+                        <button class="copy-btn" id="pass-eye" title="Reveal" onclick="togglePass()">👁</button>
+                        <button class="copy-btn" title="Copy" onclick="copyText(userPassword,this)">📋</button>
+                    </div>
+                </div>
+
+                <div class="cred-row">
+                    <div class="label">Default Topic</div>
+                    <div class="cred-value">
+                        <span class="cred-text" id="cred-topic">—</span>
+                        <button class="copy-btn" title="Copy" onclick="copyText(document.getElementById('cred-topic').innerText,this)">📋</button>
+                    </div>
+                </div>
+
+                <!-- Storage bar -->
+                <div class="storage-wrap">
+                    <div class="storage-meta">
+                        <span class="label" style="margin-bottom:0">Storage Used</span>
+                        <span style="font-family:var(--mono);font-size:0.75rem;font-weight:600" id="storage-label">0 MB / 125 MB</span>
+                    </div>
+                    <div class="storage-track"><div class="storage-fill" id="storage-fill" style="width:0%"></div></div>
+                </div>
+
+                <div class="action-row">
+                    <button id="regenerate-btn" class="btn btn-yellow">🔄 Regenerate</button>
+                    <button id="delete-btn" class="btn btn-red">🗑 Delete Account</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Connect Card -->
+        <div class="card">
+            <div class="card-header">Quick Connect</div>
+            <div style="border-bottom: var(--border);">
+                <div class="tabs" id="snippet-tabs">
+                    <button class="tab-btn active" data-target="tab-python">Python</button>
+                    <button class="tab-btn" data-target="tab-node">Node.js</button>
+                    <button class="tab-btn" data-target="tab-java">Java</button>
+                    <button class="tab-btn" data-target="tab-cli">CLI</button>
+                </div>
+            </div>
+            <div class="tab-panel" id="tab-python">
+                <div class="code-block" id="snippet-python">Loading...</div>
+            </div>
+            <div class="tab-panel hidden" id="tab-node">
+                <div class="code-block" id="snippet-node">Loading...</div>
+            </div>
+            <div class="tab-panel hidden" id="tab-java">
+                <div class="code-block" id="snippet-java">Loading...</div>
+            </div>
+            <div class="tab-panel hidden" id="tab-cli">
+                <div class="code-block" id="snippet-cli">Loading...</div>
+            </div>
+        </div>
     </div>
 
-    <main class="container">
-        <header>
-            <div class="logo">
-                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"></path><line x1="4" y1="22" x2="4" y2="15"></line></svg>
+    <!-- Row 2: Topics -->
+    <div style="margin-bottom: 1.5rem;">
+        <div class="section-title">Topics</div>
+        <div class="card" style="padding: 0;">
+            <div class="card-header">
+                <span id="topics-count">Your Topics</span>
+                <button class="btn btn-sm" id="refresh-topics-btn" style="color:var(--white)">↻ Refresh</button>
             </div>
-            <h1>Kafka Streaming Platform</h1>
-            <p>Generate your secure connection credentials instantly.</p>
-        </header>
-
-        <!-- Initial GitHub Login Card -->
-        <div id="login-card" class="glass-card login-wrap">
-            <h2 style="text-align: center; margin-bottom: 1.5rem;">Identity Verification</h2>
-            <p style="text-align: center; margin-bottom: 2rem; color: var(--text-muted); font-size: 0.9rem;">
-                To prevent spam and abuse, you must verify your identity with GitHub. You can only provision one Kafka account per person.
-            </p>
-            <button id="github-login-btn" class="primary-btn github-btn">
-                <svg height="24" viewBox="0 0 16 16" width="24" style="fill: white; margin-right: 10px;"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"></path></svg>
-                Sign in with GitHub
-            </button>
-            <div id="login-error" class="error"></div>
+            <div class="create-row">
+                <span class="topic-prefix-badge" id="topic-prefix-label">username.</span>
+                <input id="new-topic-input" class="input" placeholder="my-topic-name" style="border-right:none;"/>
+                <button id="create-topic-btn" class="btn btn-black" style="border-left:none;">+ Create</button>
+            </div>
+            <div id="topic-create-err" class="err-text" style="padding: 0 1.25rem; display:none;"></div>
+            <div style="overflow-x: auto;">
+                <table class="topics-table">
+                    <thead>
+                        <tr>
+                            <th>Topic Name</th>
+                            <th style="width:100px">Partitions</th>
+                            <th style="width:220px">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="topics-tbody">
+                        <tr><td colspan="3" style="text-align:center;color:#888;padding:2rem">Loading topics…</td></tr>
+                    </tbody>
+                </table>
+            </div>
         </div>
+    </div>
 
-        <!-- Setup loading / generation -->
-        <div id="setup-card" class="glass-card login-wrap hidden">
-            <h2 style="text-align: center; margin-bottom: 1.5rem;">GitHub Verified!</h2>
-            <p style="text-align: center; margin-bottom: 2rem; color: var(--text-muted); font-size: 0.9rem;">
-                Click below to instantly provision your dedicated Kafka username, password, and isolated topic.
-            </p>
-            <button id="generate-btn" class="primary-btn">
-                <span class="btn-text">Generate Credentials</span>
-                <div class="spinner"></div>
-            </button>
-            <div id="error-message" class="error"></div>
+    <!-- Row 3: Consumer Groups -->
+    <div style="margin-bottom: 2rem;">
+        <div class="section-title">Consumer Groups</div>
+        <div class="card" style="padding:0;">
+            <div class="card-header">
+                <span>Active Consumer Groups</span>
+                <button class="btn btn-sm" id="refresh-cg-btn" style="color:var(--white)">↻ Refresh</button>
+            </div>
+            <div id="cg-body" style="padding:0">
+                <div style="text-align:center;color:#888;padding:2rem">Loading…</div>
+            </div>
         </div>
+    </div>
 
-        <!-- Check loading -->
-        <div id="loading-card" class="glass-card hidden" style="text-align: center;">
-            <div class="spinner show" style="margin: 0 auto; display: block; border-left-color: #ff4757;"></div>
-            <p style="margin-top: 1rem; color: #bbb;">Authenticating...</p>
+    <footer class="site-footer">
+        KafkaBase — Free Kafka for Students &amp; Developers ·
+        <a href="https://github.com/subh-ghosh/kafka-homebase" target="_blank" style="color:var(--blue);font-weight:700">Open Source ↗</a>
+    </footer>
+</main>
+
+<!-- ── DATA MODAL ──────────────────────────────────────── -->
+<div class="modal-overlay" id="data-modal">
+    <div class="modal">
+        <div class="modal-head">
+            <span class="modal-head-title" id="data-modal-title">DATA</span>
+            <button class="modal-close" onclick="closeModal('data-modal')">✕</button>
         </div>
-
-        <!-- Result Card -->
-        <div id="result-card" class="glass-card hidden" style="padding: 2rem;">
-            <div class="success-header" style="margin-bottom: 2rem;">
-                <div class="check-icon">✓</div>
-                <h2>Your Account Dashboard</h2>
+        <div class="modal-body">
+            <pre id="data-modal-content">Loading…</pre>
+        </div>
+        <div class="modal-footer">
+            <div class="toggle-row">
+                <input type="checkbox" class="toggle" id="auto-refresh-toggle">
+                <label for="auto-refresh-toggle">Auto-refresh (2s)</label>
             </div>
-            
-            <div class="dashboard-grid">
-                
-                <!-- COLUMN 1: Credentials & Account -->
-                <div class="dash-col">
-                    <div class="credentials-grid">
-                <div class="cred-item">
-                    <span class="cred-label">Bootstrap Server</span>
-                    <div class="cred-value-box">
-                        <code id="res-bootstrap">broker.subartaghosh.co.in:9092</code>
-                        <button class="copy-btn" data-copy="res-bootstrap">Copy</button>
-                    </div>
-                </div>
-                
-                <div class="cred-item">
-                    <span class="cred-label">Username</span>
-                    <div class="cred-value-box">
-                        <code id="res-username"></code>
-                        <button class="copy-btn" data-copy="res-username">Copy</button>
-                    </div>
-                </div>
-                
-                <div class="cred-item">
-                    <span class="cred-label">Password</span>
-                    <div class="cred-value-box highlight">
-                        <code id="res-password"></code>
-                        <button class="copy-btn" data-copy="res-password">Copy</button>
-                    </div>
-                </div>
-                
-                <div class="cred-item">
-                    <span class="cred-label">Your Default Topic</span>
-                    <div class="cred-value-box">
-                        <code id="res-topic"></code>
-                        <button class="copy-btn" data-copy="res-topic">Copy</button>
-                    </div>
-                </div>
-            </div>
+            <button class="btn btn-sm" onclick="closeModal('data-modal')">Close</button>
+        </div>
+    </div>
+</div>
 
-            <div style="text-align: center; margin-top: 1.5rem;">
-                <button id="download-env-btn" class="action-btn" style="width: 100%; display: none; background: rgba(46, 213, 115, 0.15); color: #2ed573; border-color: rgba(46, 213, 115, 0.3);">📥 Download .env File</button>
-            </div>
-            
-            <div class="account-management" style="margin-top: 2rem; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 1.5rem; display: flex; gap: 1rem;">
-                <button id="regenerate-btn" class="action-btn" style="flex: 1; background: rgba(255, 159, 67, 0.1); color: #ff9f43; border-color: rgba(255, 159, 67, 0.3);">🔄 Regenerate</button>
-                <button id="delete-btn" class="action-btn danger" style="flex: 1;">🗑️ Delete Acc.</button>
-            </div>
-        </div> <!-- End Column 1 -->
+<!-- ── PRODUCE MODAL ───────────────────────────────────── -->
+<div class="modal-overlay" id="produce-modal">
+    <div class="modal">
+        <div class="modal-head">
+            <span class="modal-head-title" id="produce-modal-title">PRODUCE MESSAGE</span>
+            <button class="modal-close" onclick="closeModal('produce-modal')">✕</button>
+        </div>
+        <div class="modal-body">
+            <div class="label">Payload (JSON or plain text)</div>
+            <textarea id="produce-payload" class="input" style="min-height:140px;resize:vertical" placeholder='{"event":"page_view","user":"alice"}'></textarea>
+        </div>
+        <div class="modal-footer">
+            <span id="produce-status" style="font-size:0.82rem;font-weight:700"></span>
+            <button id="send-btn" class="btn btn-green">📤 Send</button>
+        </div>
+    </div>
+</div>
 
-        <!-- COLUMN 2: Connect & Topics -->
-        <div class="dash-col">
-            
-            <!-- How to Connect Box -->
-            <div style="background: rgba(0,0,0,0.2); border: 1px solid var(--card-border); border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem;">
-                <h3 style="margin-bottom: 0.5rem; color: #fff; font-size: 1.1rem;">How to Connect</h3>
-                <p style="font-size: 0.85rem; color: #bbb; margin-bottom: 1rem;">Your permissions allow you to Read, Write, and Create <strong>any topic</strong> that starts with <code id="res-prefix"></code>. You do not need a dashboard to create topics—simply create them directly from your code!</p>
-                
-                <div class="code-tabs">
-                    <button class="tab-btn active" data-target="code-python">Python</button>
-                    <button class="tab-btn" data-target="code-node">Node.js</button>
-                    <button class="tab-btn" data-target="code-java">Java / Spring</button>
-                </div>
+<!-- ── TOAST ───────────────────────────────────────────── -->
+<div class="toast" id="toast"></div>
 
-                <div id="code-python" class="code-block active">
-                    <button class="code-copy-btn">Copy</button>
-<pre><code>from confluent_kafka import Producer
+<!-- ── SCRIPT ──────────────────────────────────────────── -->
+<script>
+// ── GLOBALS ───────────────────────────────────────────
+const BROKER = 'broker.subartaghosh.co.in:9092';
+let currentAccessToken = localStorage.getItem('kb_token') || '';
+let userPassword       = '';
+let passRevealed       = false;
+let currentViewTopic   = '';
+let currentProduceTopic = '';
+let autoRefreshInterval = null;
 
-conf = {
-    'bootstrap.servers': 'broker.subartaghosh.co.in:9092',
-    'security.protocol': 'SASL_SSL',
-    'sasl.mechanisms': 'SCRAM-SHA-512',
-    'sasl.username': '<span class="ins-user"></span>',
-    'sasl.password': '<span class="ins-pass"></span>'
-}
+const $ = id => document.getElementById(id);
 
-producer = Producer(conf)
-producer.produce('<span class="ins-top"></span>', key="key", value="hello world")
-producer.flush()</code></pre>
-                </div>
+// ── TOAST ──────────────────────────────────────────────
+const showToast = (msg, ms = 2800) => {
+    const t = $('toast');
+    t.innerText = msg;
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), ms);
+};
 
-                <div id="code-node" class="code-block hidden">
-                    <button class="code-copy-btn">Copy</button>
-<pre><code>const { Kafka } = require('kafkajs')
+// ── COPY ───────────────────────────────────────────────
+const copyText = async (text, btn) => {
+    if (!text || text === '—' || text === '••••••••••••••••') return;
+    try {
+        await navigator.clipboard.writeText(text);
+        const old = btn.innerText;
+        btn.innerText = '✅';
+        setTimeout(() => btn.innerText = old, 1400);
+        showToast('Copied!', 1500);
+    } catch { showToast('Copy failed — select & copy manually.', 3000); }
+};
+
+// ── PASSWORD REVEAL ────────────────────────────────────
+const togglePass = () => {
+    passRevealed = !passRevealed;
+    $('cred-password').innerText = passRevealed
+        ? (userPassword || '[ regenerate to see password ]')
+        : '••••••••••••••••';
+    $('pass-eye').innerText = passRevealed ? '🙈' : '👁';
+};
+
+// ── CLOSE MODAL ────────────────────────────────────────
+const closeModal = id => {
+    $(id).classList.remove('show');
+    if (id === 'data-modal') {
+        clearInterval(autoRefreshInterval);
+        $('auto-refresh-toggle').checked = false;
+    }
+};
+
+// ── CODE SNIPPETS ──────────────────────────────────────
+const buildSnippets = (username, topic) => {
+    $('snippet-python').innerText =
+`from kafka import KafkaConsumer, KafkaProducer
+import ssl
+
+ssl_ctx = ssl.create_default_context()
+
+# Consumer
+consumer = KafkaConsumer(
+    '${topic}',
+    bootstrap_servers='${BROKER}',
+    security_protocol='SASL_SSL',
+    sasl_mechanism='SCRAM-SHA-512',
+    sasl_plain_username='${username}',
+    sasl_plain_password='YOUR_PASSWORD',
+    ssl_context=ssl_ctx,
+    auto_offset_reset='earliest',
+    group_id='${username}-group',
+)
+for msg in consumer:
+    print(msg.value.decode())`;
+
+    $('snippet-node').innerText =
+`const { Kafka } = require('kafkajs');
 
 const kafka = new Kafka({
-  clientId: 'my-app',
-  brokers: ['broker.subartaghosh.co.in:9092'],
+  clientId: '${username}-app',
+  brokers: ['${BROKER}'],
   ssl: true,
   sasl: {
     mechanism: 'scram-sha-512',
-    username: '<span class="ins-user"></span>',
-    password: '<span class="ins-pass"></span>'
-  }
-})
+    username: '${username}',
+    password: 'YOUR_PASSWORD',
+  },
+});
 
-const producer = kafka.producer()
-await producer.connect()
-await producer.send({
-  topic: '<span class="ins-top"></span>',
-  messages: [{ value: 'hello world' }],
-})</code></pre>
-                </div>
+const consumer = kafka.consumer({ groupId: '${username}-group' });
+await consumer.connect();
+await consumer.subscribe({ topic: '${topic}', fromBeginning: true });
+await consumer.run({
+  eachMessage: async ({ message }) => {
+    console.log(message.value.toString());
+  },
+});`;
 
-                <div id="code-java" class="code-block hidden">
-                    <button class="code-copy-btn">Copy</button>
-<pre><code>Properties props = new Properties();
-props.put("bootstrap.servers", "broker.subartaghosh.co.in:9092");
-props.put("security.protocol", "SASL_SSL");
-props.put("sasl.mechanism", "SCRAM-SHA-512");
-props.put("sasl.jaas.config", 
-  "org.apache.kafka.common.security.scram.ScramLoginModule required " +
-  "username=\"<span class="ins-user"></span>\" password=\"<span class="ins-pass"></span>\";");
+    $('snippet-java').innerText =
+`# application.properties (Spring Kafka / Boot)
+spring.kafka.bootstrap-servers=${BROKER}
+spring.kafka.security.protocol=SASL_SSL
+spring.kafka.properties.sasl.mechanism=SCRAM-SHA-512
+spring.kafka.properties.sasl.jaas.config=\\
+  org.apache.kafka.common.security.scram.ScramLoginModule \\
+  required username="${username}" password="YOUR_PASSWORD";
+spring.kafka.consumer.group-id=${username}-group
+spring.kafka.consumer.auto-offset-reset=earliest
+spring.kafka.consumer.key-deserializer=\\
+  org.apache.kafka.common.serialization.StringDeserializer
+spring.kafka.consumer.value-deserializer=\\
+  org.apache.kafka.common.serialization.StringDeserializer`;
 
-Producer&lt;String, String&gt; producer = new KafkaProducer&lt;&gt;(props);
-producer.send(new ProducerRecord&lt;&gt;("<span class="ins-top"></span>", "key", "hello world"));
-producer.close();</code></pre>
-                </div>
-            </div> <!-- End How to Connect Box -->
+    $('snippet-cli').innerText =
+`# 1. Create client.properties
+cat > client.properties << EOF
+security.protocol=SASL_SSL
+sasl.mechanism=SCRAM-SHA-512
+sasl.jaas.config=org.apache.kafka.common.security.scram.ScramLoginModule \\
+  required username="${username}" password="YOUR_PASSWORD";
+EOF
 
-            <!-- Topics & Consumers Box -->
-            <div style="background: rgba(0,0,0,0.2); border: 1px solid var(--card-border); border-radius: 12px; padding: 1.5rem;">
-                <h3 style="margin-bottom: 1rem; color: #fff; text-align: left; font-size: 1.1rem;">Manage Topics & Consumers</h3>
-                
-                <div class="code-tabs" style="margin-bottom: 1rem;">
-                    <button class="tab-btn active" data-target="topics-tab" style="flex: 1;">Topics</button>
-                    <button class="tab-btn" data-target="consumers-tab" style="flex: 1;" id="consumers-tab-btn">Consumer Groups</button>
-                </div>
+# 2. Consume messages
+kafka-console-consumer.sh \\
+  --bootstrap-server ${BROKER} \\
+  --consumer.config client.properties \\
+  --topic ${topic} \\
+  --from-beginning
 
-                <div id="topics-tab" class="code-block active" style="background: transparent; border: none; padding: 0;">
-                    <div style="display: flex; gap: 1rem; margin-bottom: 1.5rem;">
-                        <input type="text" id="new-topic-name" placeholder="Topic suffix (e.g. logs)" style="flex: 1; padding: 0.8rem; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); color: white; border-radius: 8px;">
-                        <button id="create-topic-btn" class="action-btn primary" style="margin-top: 0;">Create</button>
-                    </div>
-                    <div id="topics-list" style="display: flex; flex-direction: column; gap: 0.8rem;">
-                        <div style="text-align: center; color: #888;">Loading topics...</div>
-                    </div>
-                </div>
+# 3. Produce a test message
+echo "hello world" | kafka-console-producer.sh \\
+  --bootstrap-server ${BROKER} \\
+  --producer.config client.properties \\
+  --topic ${topic}`;
+};
 
-                <div id="consumers-tab" class="code-block hidden" style="background: transparent; border: none; padding: 0;">
-                    <div id="consumers-list" style="display: flex; flex-direction: column; gap: 0.8rem;">
-                        <div style="text-align: center; color: #888;">Loading consumer groups...</div>
-                    </div>
-                </div>
-            </div> <!-- End Topics Box -->
+// ── AUTH FLOW ──────────────────────────────────────────
+$('github-login-btn').addEventListener('click', async () => {
+    $('github-login-btn').disabled = true;
+    $('github-login-btn').innerText = 'Connecting…';
+    const cfg = await fetch('/api/config').then(r => r.json());
+    const state = crypto.randomUUID();
+    localStorage.setItem('kb_state', state);
+    window.location.href =
+        `https://github.com/login/oauth/authorize?client_id=${cfg.clientId}&scope=read:user&state=${state}`;
+});
 
-        </div> <!-- End Column 2 -->
-        
-        </div> <!-- End Grid -->
-        </div> <!-- End Result Card -->
-        
-        <!-- Support Footer -->
-        <div class="footer-support">
-            Need help? <a href="mailto:subartaghosh6@gmail.com">Contact Support</a>
-        </div>
-    </main>
+const init = async () => {
+    const params = new URLSearchParams(window.location.search);
+    const code = params.get('code');
+    if (code) {
+        history.replaceState({}, '', '/');
+        await handleCode(code);
+        return;
+    }
+    if (currentAccessToken) await loadUser();
+};
 
-    <!-- Delete Modal -->
-    <div id="delete-modal" class="modal">
-        <div class="modal-content">
-            <h3>Delete Account</h3>
-            <p>Are you sure? This will instantly delete your credentials and drop all your Kafka topics permanently. This cannot be undone.</p>
-            <div class="modal-actions">
-                <button id="cancel-delete" class="primary-btn" style="background: rgba(255,255,255,0.1);">Cancel</button>
-                <button id="confirm-delete" class="primary-btn btn-danger">Yes, Delete Everything</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Data Modal -->
-    <div id="data-modal" class="modal">
-        <div class="modal-content" style="max-width: 600px; width: 100%;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
-                <h3 id="data-modal-title" style="margin-bottom: 0;">Topic Data</h3>
-                <label style="display: flex; align-items: center; gap: 0.5rem; color: #a5d6ff; font-size: 0.85rem; cursor: pointer;">
-                    <input type="checkbox" id="auto-refresh-toggle"> Auto-Refresh (2s)
-                </label>
-            </div>
-            <p style="margin-bottom: 1rem; font-size: 0.85rem; color: #aaa;">Showing latest 20 messages.</p>
-            <div id="data-modal-content" style="background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); padding: 1rem; border-radius: 8px; text-align: left; max-height: 300px; overflow-y: auto; font-family: monospace; font-size: 0.9rem; color: #a5d6ff; white-space: pre-wrap; margin-bottom: 1.5rem;">
-                Loading...
-            </div>
-            <div class="modal-actions">
-                <button id="close-data-modal" class="primary-btn" style="background: rgba(255,255,255,0.1);">Close</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Produce Modal -->
-    <div id="produce-modal" class="modal">
-        <div class="modal-content" style="max-width: 500px; width: 100%;">
-            <h3 id="produce-modal-title">Produce Message</h3>
-            <p style="margin-bottom: 1rem; font-size: 0.85rem; color: #aaa;">Enter JSON to send to this topic.</p>
-            <textarea id="produce-payload" rows="5" style="width: 100%; padding: 0.8rem; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); color: #a5d6ff; border-radius: 8px; font-family: monospace; margin-bottom: 1.5rem;">{"hello": "world"}</textarea>
-            <div class="modal-actions">
-                <button id="cancel-produce-modal" class="primary-btn" style="background: rgba(255,255,255,0.1);">Cancel</button>
-                <button id="send-produce-modal" class="primary-btn">Send Message</button>
-            </div>
-        </div>
-    </div>
-
-    <script>
-        let currentAccessToken = null;
-
-        // Copy to clipboard logic
-        document.querySelectorAll('.copy-btn').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                e.preventDefault();
-                const targetId = btn.getAttribute('data-copy');
-                const text = document.getElementById(targetId).innerText;
-                navigator.clipboard.writeText(text);
-                const originalText = btn.innerText;
-                btn.innerText = 'Copied!';
-                setTimeout(() => btn.innerText = originalText, 2000);
-            });
-        });
-
-        // Tab Switching Logic — scoped to each tab group's parent to avoid cross-section interference
-        document.querySelectorAll('.tab-btn').forEach(btn => {
-            btn.addEventListener('click', () => {
-                const tabGroup = btn.closest('.code-tabs');
-                const parent = tabGroup.parentElement;
-
-                // Deactivate only buttons in this specific group
-                tabGroup.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-
-                // Hide only panels belonging to this section
-                parent.querySelectorAll('.code-block').forEach(c => {
-                    c.classList.add('hidden');
-                    c.classList.remove('active');
-                });
-
-                btn.classList.add('active');
-                const targetId = btn.getAttribute('data-target');
-                document.getElementById(targetId).classList.remove('hidden');
-                document.getElementById(targetId).classList.add('active');
-            });
-        });
-
-        // Code block copy logic
-        document.querySelectorAll('.code-copy-btn').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                e.preventDefault();
-                const codeBlock = btn.parentElement.querySelector('code');
-                navigator.clipboard.writeText(codeBlock.innerText);
-                const originalText = btn.innerText;
-                btn.innerText = 'Copied!';
-                setTimeout(() => btn.innerText = originalText, 2000);
-            });
-        });
-
-        const loadTopics = async () => {
-            const listEl = document.getElementById('topics-list');
-            listEl.innerHTML = '<div style="text-align: center; color: #888;">Loading topics...</div>';
-            try {
-                const res = await fetch('/api/topics', {
-                    headers: { 'Authorization': `Bearer ${currentAccessToken}` }
-                });
-                const data = await res.json();
-                if (data.success) {
-                    listEl.innerHTML = '';
-                    if (data.topics.length === 0) {
-                        listEl.innerHTML = '<div style="text-align: center; color: #888;">No topics found.</div>';
-                    }
-                    data.topics.forEach(topic => {
-                        const div = document.createElement('div');
-                        div.style.display = 'flex';
-                        div.style.justifyContent = 'space-between';
-                        div.style.alignItems = 'center';
-                        div.style.padding = '0.8rem';
-                        div.style.background = 'rgba(255,255,255,0.05)';
-                        div.style.borderRadius = '8px';
-                        
-                        const nameSpan = document.createElement('span');
-                        nameSpan.innerText = topic;
-                        nameSpan.style.fontFamily = 'monospace';
-                        nameSpan.style.color = '#a5d6ff';
-                        
-                        const actionsDiv = document.createElement('div');
-                        actionsDiv.style.display = 'flex';
-                        actionsDiv.style.gap = '0.5rem';
-
-                        const sendBtn = document.createElement('button');
-                        sendBtn.innerText = 'Send Msg';
-                        sendBtn.className = 'action-btn primary';
-                        sendBtn.onclick = () => openProduceModal(topic);
-
-                        const viewBtn = document.createElement('button');
-                        viewBtn.innerText = 'View Data';
-                        viewBtn.className = 'action-btn';
-                        viewBtn.onclick = () => viewTopicData(topic);
-
-                        const delBtn = document.createElement('button');
-                        delBtn.innerText = 'Del';
-                        delBtn.className = 'action-btn danger';
-                        delBtn.onclick = () => deleteTopic(topic);
-
-                        actionsDiv.appendChild(sendBtn);
-                        actionsDiv.appendChild(viewBtn);
-                        actionsDiv.appendChild(delBtn);
-
-                        div.appendChild(nameSpan);
-                        div.appendChild(actionsDiv);
-                        listEl.appendChild(div);
-                    });
-                } else {
-                    listEl.innerHTML = `<div style="text-align: center; color: #ff4757;">Failed to load topics: ${data.error}</div>`;
-                }
-            } catch (err) {
-                listEl.innerHTML = '<div style="text-align: center; color: #ff4757;">Failed to load topics.</div>';
-            }
-        };
-
-        const viewTopicData = async (topic) => {
-            currentViewTopic = topic; // store for auto-refresh use
-            const modal = document.getElementById('data-modal');
-            const title = document.getElementById('data-modal-title');
-            const content = document.getElementById('data-modal-content');
-            
-            title.innerText = `Data in ${topic}`;
-            content.innerText = 'Fetching latest messages...\nThis takes ~2 seconds.';
-            modal.classList.add('show');
-
-            try {
-                const res = await fetch(`/api/topics/${topic}/data`, {
-                    headers: { 'Authorization': `Bearer ${currentAccessToken}` }
-                });
-                const data = await res.json();
-                if (data.success) {
-                    if (data.data.length === 0) {
-                        content.innerText = '(No messages found or topic is empty)';
-                    } else {
-                        content.innerText = data.data.join('\n');
-                    }
-                } else {
-                    content.innerText = `Error: ${data.error}`;
-                }
-            } catch (err) {
-                content.innerText = 'Failed to fetch data from the server.';
-            }
-        };
-
-        const deleteTopic = async (topic) => {
-            if (!confirm(`Are you sure you want to delete the topic ${topic}? This will permanently erase all data inside it.`)) return;
-            
-            try {
-                const res = await fetch(`/api/topics/${topic}`, {
-                    method: 'DELETE',
-                    headers: { 'Authorization': `Bearer ${currentAccessToken}` }
-                });
-                const data = await res.json();
-                if (data.success) {
-                    loadTopics();
-                } else {
-                    alert('Failed to delete topic: ' + data.error);
-                }
-            } catch (err) {
-                alert('Server error while deleting topic.');
-            }
-        };
-
-        document.getElementById('create-topic-btn').addEventListener('click', async (e) => {
-            const btn = e.target;
-            const input = document.getElementById('new-topic-name');
-            const suffix = input.value.trim();
-            if (!suffix) return;
-
-            btn.disabled = true;
-            btn.innerText = 'Creating...';
-
-            try {
-                const res = await fetch('/api/topics', {
-                    method: 'POST',
-                    headers: { 
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${currentAccessToken}`
-                    },
-                    body: JSON.stringify({ suffix })
-                });
-                const data = await res.json();
-                if (data.success) {
-                    input.value = '';
-                    loadTopics();
-                } else {
-                    alert('Error creating topic: ' + data.error);
-                }
-            } catch (err) {
-                alert('Server error creating topic.');
-            } finally {
-                btn.disabled = false;
-                btn.innerText = 'Create';
-            }
-        });
-
-        document.getElementById('close-data-modal').addEventListener('click', () => {
-            document.getElementById('data-modal').classList.remove('show');
-        });
-
-        let currentProduceTopic = '';
-        let currentViewTopic = ''; // tracks which topic the data modal is showing
-        const openProduceModal = (topic) => {
-            currentProduceTopic = topic;
-            document.getElementById('produce-modal-title').innerText = `Produce to ${topic}`;
-            document.getElementById('produce-modal').classList.add('show');
-        };
-
-        document.getElementById('cancel-produce-modal').addEventListener('click', () => {
-            document.getElementById('produce-modal').classList.remove('show');
-        });
-
-        document.getElementById('send-produce-modal').addEventListener('click', async (e) => {
-            const btn = e.target;
-            const payload = document.getElementById('produce-payload').value;
-            btn.disabled = true;
-            btn.innerText = 'Sending...';
-
-            try {
-                const res = await fetch(`/api/topics/${currentProduceTopic}/produce`, {
-                    method: 'POST',
-                    headers: { 
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${currentAccessToken}`
-                    },
-                    body: JSON.stringify({ payload })
-                });
-                const data = await res.json();
-                if (data.success) {
-                    document.getElementById('produce-modal').classList.remove('show');
-                } else {
-                    alert('Error: ' + data.error);
-                }
-            } catch(err) {
-                alert('Server error while sending message.');
-            } finally {
-                btn.disabled = false;
-                btn.innerText = 'Send Message';
-            }
-        });
-
-        const loadConsumerGroups = async () => {
-            const listEl = document.getElementById('consumers-list');
-            listEl.innerHTML = '<div style="text-align: center; color: #888;">Loading consumer groups...</div>';
-            try {
-                const res = await fetch('/api/consumer-groups', {
-                    headers: { 'Authorization': `Bearer ${currentAccessToken}` }
-                });
-                const data = await res.json();
-                if (data.success) {
-                    listEl.innerHTML = '';
-                    if (data.groups.length === 0) {
-                        listEl.innerHTML = '<div style="text-align: center; color: #888;">No active consumer groups found.</div>';
-                    }
-                    data.groups.forEach(groupInfo => {
-                        const div = document.createElement('div');
-                        div.style.background = 'rgba(255,255,255,0.05)';
-                        div.style.padding = '1rem';
-                        div.style.borderRadius = '8px';
-                        
-                        const title = document.createElement('h4');
-                        title.innerText = groupInfo.group;
-                        title.style.margin = '0 0 0.5rem 0';
-                        title.style.color = '#fff';
-                        
-                        const code = document.createElement('pre');
-                        code.innerText = groupInfo.details;
-                        code.style.fontSize = '0.8rem';
-                        code.style.color = '#a5d6ff';
-                        code.style.overflowX = 'auto';
-                        
-                        div.appendChild(title);
-                        div.appendChild(code);
-                        listEl.appendChild(div);
-                    });
-                } else {
-                    listEl.innerHTML = `<div style="text-align: center; color: #ff4757;">Failed to load consumers.</div>`;
-                }
-            } catch(err) {
-                listEl.innerHTML = '<div style="text-align: center; color: #ff4757;">Failed to load consumers.</div>';
-            }
-        };
-
-        document.getElementById('consumers-tab-btn').addEventListener('click', loadConsumerGroups);
-
-        // Show logout button if logged in
-        const showLogout = () => {
-            document.getElementById('logout-btn').style.display = 'flex';
-        };
-
-        const populateDashboard = (data) => {
-            document.getElementById('setup-card').classList.add('hidden');
-            document.getElementById('result-card').classList.remove('hidden');
-            showLogout();
-            document.getElementById('res-username').innerText = data.username;
-            document.getElementById('res-password').innerText = data.password;
-            document.getElementById('res-topic').innerText = data.topic;
-            document.getElementById('res-prefix').innerText = data.username + ".";
-
-            document.querySelectorAll('.ins-user').forEach(el => el.innerText = data.username);
-            document.querySelectorAll('.ins-pass').forEach(el => el.innerText = data.password);
-            document.querySelectorAll('.ins-top').forEach(el => el.innerText = data.topic);
-            
-            const passCopyBtn = document.querySelector('button[data-copy="res-password"]');
-            const downloadBtn = document.getElementById('download-env-btn');
-            
-            if (data.password === '****************') {
-                passCopyBtn.style.display = 'none';
-                downloadBtn.style.display = 'none';
-                document.getElementById('res-password').style.color = '#888';
-                document.getElementById('res-password').style.fontStyle = 'italic';
-            } else {
-                passCopyBtn.style.display = 'inline-block';
-                downloadBtn.style.display = 'inline-block';
-                document.getElementById('res-password').style.color = '';
-                document.getElementById('res-password').style.fontStyle = 'normal';
-                
-                // Set up download env logic
-                downloadBtn.onclick = () => {
-                    const envContent = `KAFKA_BROKERS=broker.subartaghosh.co.in:9092\nKAFKA_USERNAME=${data.username}\nKAFKA_PASSWORD=${data.password}\nKAFKA_TOPIC=${data.topic}\n`;
-                    const blob = new Blob([envContent], { type: 'text/plain' });
-                    const url = URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = '.env';
-                    document.body.appendChild(a);
-                    a.click();
-                    document.body.removeChild(a);
-                    URL.revokeObjectURL(url);
-                };
-            }
-
-            document.getElementById('login-card').style.display = 'none';
-            document.getElementById('setup-card').style.display = 'none';
-            document.getElementById('loading-card').style.display = 'none';
-            
-            const resultCard = document.getElementById('result-card');
-            resultCard.style.display = 'block';
-            setTimeout(() => {
-                resultCard.classList.remove('hidden');
-                loadTopics();
-            }, 50);
-        };
-
-        const loginCard = document.getElementById('login-card');
-        const setupCard = document.getElementById('setup-card');
-        const loadingCard = document.getElementById('loading-card');
-        const resultCard = document.getElementById('result-card');
-        const githubBtn = document.getElementById('github-login-btn');
-        const errorMsg = document.getElementById('error-message');
-        const loginErrorMsg = document.getElementById('login-error');
-
-        const urlParams = new URLSearchParams(window.location.search);
-        const githubCode = urlParams.get('code');
-
-        if (githubCode) {
-            loginCard.style.display = 'none';
-            loadingCard.classList.remove('hidden');
-            window.history.replaceState({}, document.title, "/");
-            
-            fetch('/api/user', {
-                headers: { 'Authorization': `Bearer ${githubCode}` }
-            })
-            .then(res => res.json())
-            .then(data => {
-                if (data.error) {
-                    loadingCard.classList.add('hidden');
-                    loginCard.style.display = 'block';
-                    loginErrorMsg.innerText = data.error;
-                    loginErrorMsg.classList.add('show');
-                    return;
-                }
-                
-                currentAccessToken = data.accessToken;
-                
-                if (data.exists) {
-                    populateDashboard(data);
-                } else {
-                    document.getElementById('loading-card').classList.add('hidden');
-                    document.getElementById('setup-card').classList.remove('hidden');
-                    showLogout();
-                }
-            })
-            .catch(err => {
-                loadingCard.classList.add('hidden');
-                loginCard.style.display = 'block';
-                loginErrorMsg.innerText = 'Server error during authentication.';
-                loginErrorMsg.classList.add('show');
-            });
+const handleCode = async (code) => {
+    try {
+        const res  = await fetch('/api/user', { headers: { Authorization: `Bearer ${code}` } });
+        const data = await res.json();
+        if (data.accessToken) {
+            currentAccessToken = data.accessToken;
+            localStorage.setItem('kb_token', currentAccessToken);
         }
+        if (data.exists) {
+            showDashboard(data);
+        } else {
+            await registerUser();
+        }
+    } catch {
+        showToast('Login error. Please try again.', 4000);
+        $('github-login-btn').disabled = false;
+        $('github-login-btn').innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.374 0 0 5.373 0 12c0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23A11.509 11.509 0 0112 5.803c1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.566 21.797 24 17.3 24 12c0-6.627-5.373-12-12-12z"/></svg> Login with GitHub`;
+    }
+};
 
-        githubBtn.addEventListener('click', async () => {
-            githubBtn.classList.add('loading');
+const loadUser = async () => {
+    const res = await fetch('/api/user', { headers: { Authorization: `Bearer ${currentAccessToken}` } });
+    if (res.status === 401) { localStorage.removeItem('kb_token'); return; }
+    const data = await res.json();
+    if (data.exists) showDashboard(data);
+};
+
+const registerUser = async () => {
+    showToast('Creating your Kafka account…', 6000);
+    const res  = await fetch('/api/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ accessToken: currentAccessToken })
+    });
+    const data = await res.json();
+    if (data.success) {
+        userPassword = data.password;
+        showToast('🎉 Account created! Save your password now.', 7000);
+        await loadUser();
+    } else if (data.error === 'Account already exists.') {
+        await loadUser();
+    } else {
+        showToast('Registration failed: ' + (data.error || 'unknown'), 5000);
+    }
+};
+
+// ── DASHBOARD ──────────────────────────────────────────
+const showDashboard = (data) => {
+    $('login-section').classList.add('hidden');
+    $('dashboard-section').classList.remove('hidden');
+
+    // Nav
+    $('nav-right').innerHTML = `
+        <span class="nav-user">${data.username}</span>
+        <button onclick="logout()" class="btn btn-sm btn-red" style="box-shadow:3px 3px 0 #8B0000;">Logout</button>
+    `;
+
+    // Credentials
+    $('cred-username').innerText = data.username;
+    $('cred-topic').innerText    = data.topic;
+    $('topic-prefix-label').innerText = data.username + '.';
+
+    // Storage
+    const mb  = parseFloat(data.storageMB) || 0;
+    const pct = Math.min((mb / 125) * 100, 100);
+    $('storage-label').innerText = `${mb} MB / 125 MB`;
+    $('storage-fill').style.width = pct + '%';
+    if (pct > 90) $('storage-fill').classList.add('danger');
+    else if (pct > 70) $('storage-fill').classList.add('warn');
+
+    // New password shown immediately after registration
+    if (userPassword) {
+        $('cred-password').innerText = userPassword;
+        passRevealed = true;
+        $('pass-eye').innerText = '🙈';
+        showToast('⚠️ Save your password — it won\'t be shown again!', 8000);
+    }
+
+    // Blocked status
+    if (data.quotaExceeded) {
+        $('cred-status').textContent = 'QUOTA EXCEEDED';
+        $('cred-status').className = 'badge badge-red';
+    }
+
+    buildSnippets(data.username, data.topic);
+    loadTopics(data.username);
+    loadConsumerGroups();
+};
+
+const logout = () => {
+    localStorage.removeItem('kb_token');
+    location.reload();
+};
+
+// ── TOPICS ─────────────────────────────────────────────
+const loadTopics = async (username) => {
+    const tbody = $('topics-tbody');
+    tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;color:#888;padding:1.5rem">Loading…</td></tr>';
+    try {
+        const res  = await fetch('/api/topics', { headers: { Authorization: `Bearer ${currentAccessToken}` } });
+        const data = await res.json();
+        if (!data.success || data.topics.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;color:#888;padding:1.5rem">No topics yet. Create one above.</td></tr>';
+            $('topics-count').textContent = 'Your Topics (0)';
+            return;
+        }
+        $('topics-count').textContent = `Your Topics (${data.topics.length})`;
+        tbody.innerHTML = '';
+        data.topics.forEach(topic => {
+            const tr = document.createElement('tr');
+
+            const nameTd = document.createElement('td');
+            nameTd.className = 'topic-name-cell';
+            nameTd.textContent = topic;
+
+            const partTd = document.createElement('td');
+            partTd.innerHTML = '<span class="badge badge-yellow">3</span>';
+
+            const actTd = document.createElement('td');
+            const wrap = document.createElement('div');
+            wrap.className = 'topic-actions';
+
+            const dataBtn = document.createElement('button');
+            dataBtn.className = 'btn btn-sm';
+            dataBtn.textContent = 'Data';
+            dataBtn.addEventListener('click', () => viewTopicData(topic));
+
+            const prodBtn = document.createElement('button');
+            prodBtn.className = 'btn btn-sm btn-yellow';
+            prodBtn.textContent = 'Produce';
+            prodBtn.addEventListener('click', () => openProduceModal(topic));
+
+            const delBtn = document.createElement('button');
+            delBtn.className = 'btn btn-sm btn-red';
+            delBtn.textContent = 'Delete';
+            delBtn.addEventListener('click', () => deleteTopic(topic));
+
+            wrap.append(dataBtn, prodBtn, delBtn);
+            actTd.appendChild(wrap);
+            tr.append(nameTd, partTd, actTd);
+            tbody.appendChild(tr);
+        });
+    } catch {
+        tbody.innerHTML = '<tr><td colspan="3" style="color:var(--red);text-align:center;padding:1.5rem">Failed to load topics.</td></tr>';
+    }
+};
+
+$('create-topic-btn').addEventListener('click', async () => {
+    const btn  = $('create-topic-btn');
+    const suf  = $('new-topic-input').value.trim();
+    const errEl = $('topic-create-err');
+    errEl.style.display = 'none'; errEl.innerText = '';
+    if (!suf) { errEl.style.display = 'block'; errEl.innerText = 'Enter a topic suffix.'; return; }
+    btn.disabled = true; btn.innerText = 'Creating…';
+    try {
+        const res  = await fetch('/api/topics', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${currentAccessToken}` },
+            body: JSON.stringify({ suffix: suf })
+        });
+        const data = await res.json();
+        if (data.success) {
+            $('new-topic-input').value = '';
+            showToast('✅ Topic created!');
+            loadTopics($('cred-username').innerText);
+        } else if (res.status === 409) {
+            errEl.style.display = 'block'; errEl.innerText = 'Topic already exists.';
+        } else {
+            errEl.style.display = 'block'; errEl.innerText = data.error || 'Failed to create.';
+        }
+    } catch { errEl.style.display = 'block'; errEl.innerText = 'Server error.'; }
+    finally { btn.disabled = false; btn.innerText = '+ Create'; }
+});
+
+$('refresh-topics-btn').addEventListener('click', () => loadTopics($('cred-username').innerText));
+
+const deleteTopic = async (topic) => {
+    if (!confirm(`Delete "${topic}"?\n\nThis permanently removes the topic and all its data.`)) return;
+    try {
+        const res  = await fetch(`/api/topics/${topic}`, {
+            method: 'DELETE', headers: { Authorization: `Bearer ${currentAccessToken}` }
+        });
+        const data = await res.json();
+        if (data.success) { showToast('Topic deleted.'); loadTopics($('cred-username').innerText); }
+        else showToast('Error: ' + data.error, 3500);
+    } catch { showToast('Server error.', 3000); }
+};
+
+// ── DATA VIEWER ────────────────────────────────────────
+const viewTopicData = async (topic) => {
+    currentViewTopic = topic;
+    $('data-modal-title').innerText = topic;
+    $('data-modal-content').innerText = 'Fetching messages… (~2s)';
+    $('auto-refresh-toggle').checked = false;
+    clearInterval(autoRefreshInterval);
+    $('data-modal').classList.add('show');
+    try {
+        const res  = await fetch(`/api/topics/${topic}/data`, { headers: { Authorization: `Bearer ${currentAccessToken}` } });
+        const data = await res.json();
+        $('data-modal-content').innerText = data.success
+            ? (data.data.length ? data.data.join('\n──────────────────────\n') : 'No messages yet. Use the Produce button to add some.')
+            : 'Error: ' + data.error;
+    } catch { $('data-modal-content').innerText = 'Failed to fetch data.'; }
+};
+
+$('auto-refresh-toggle').addEventListener('change', e => {
+    if (e.target.checked) {
+        autoRefreshInterval = setInterval(async () => {
             try {
-                const res = await fetch('/api/config');
+                const res  = await fetch(`/api/topics/${currentViewTopic}/data`, { headers: { Authorization: `Bearer ${currentAccessToken}` } });
                 const data = await res.json();
-                if (data.clientId) {
-                    window.location.href = `https://github.com/login/oauth/authorize?client_id=${data.clientId}`;
-                } else {
-                    loginErrorMsg.innerText = 'Server is not configured for GitHub OAuth.';
-                    loginErrorMsg.classList.add('show');
-                    githubBtn.classList.remove('loading');
-                }
-            } catch (err) {
-                loginErrorMsg.innerText = 'Failed to connect to server.';
-                loginErrorMsg.classList.add('show');
-                githubBtn.classList.remove('loading');
-            }
+                if (data.success)
+                    $('data-modal-content').innerText = data.data.length
+                        ? data.data.join('\n──────────────────────\n')
+                        : 'No messages yet.';
+            } catch {}
+        }, 2000);
+    } else {
+        clearInterval(autoRefreshInterval);
+    }
+});
+
+// ── PRODUCE ────────────────────────────────────────────
+const openProduceModal = (topic) => {
+    currentProduceTopic = topic;
+    $('produce-modal-title').innerText = `PRODUCE → ${topic}`;
+    $('produce-payload').value = '';
+    $('produce-status').innerText = '';
+    $('produce-modal').classList.add('show');
+};
+
+$('send-btn').addEventListener('click', async () => {
+    const btn = $('send-btn');
+    const pay = $('produce-payload').value.trim();
+    if (!pay) { $('produce-status').innerText = '⚠️ Enter a payload.'; return; }
+    btn.disabled = true; btn.innerText = 'Sending…';
+    try {
+        const res  = await fetch(`/api/topics/${currentProduceTopic}/produce`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${currentAccessToken}` },
+            body: JSON.stringify({ payload: pay })
         });
+        const data = await res.json();
+        $('produce-status').innerText = data.success ? '✅ Sent!' : '❌ ' + data.error;
+        if (data.success) $('produce-payload').value = '';
+    } catch { $('produce-status').innerText = '❌ Server error.'; }
+    finally { btn.disabled = false; btn.innerText = '📤 Send'; }
+});
 
-        document.getElementById('generate-btn').addEventListener('click', async () => {
-            errorMsg.innerText = '';
-            errorMsg.classList.remove('show');
-            const btn = document.getElementById('generate-btn');
-            btn.classList.add('loading');
-
-            try {
-                const response = await fetch('/api/register', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ accessToken: currentAccessToken })
-                });
-
-                const data = await response.json();
-
-                if (response.ok && data.success) {
-                    populateDashboard(data);
-                } else {
-                    errorMsg.innerText = data.error || 'An unexpected error occurred.';
-                    errorMsg.classList.add('show');
-                }
-            } catch (err) {
-                errorMsg.innerText = 'Failed to connect to the server.';
-                errorMsg.classList.add('show');
-            } finally {
-                btn.classList.remove('loading');
-            }
+// ── CONSUMER GROUPS ────────────────────────────────────
+const loadConsumerGroups = async () => {
+    const body = $('cg-body');
+    try {
+        const res  = await fetch('/api/consumer-groups', { headers: { Authorization: `Bearer ${currentAccessToken}` } });
+        const data = await res.json();
+        if (!data.success || data.groups.length === 0) {
+            body.innerHTML = '<div style="text-align:center;color:#888;padding:1.5rem">No active consumer groups.</div>';
+            return;
+        }
+        body.innerHTML = '';
+        data.groups.forEach(g => {
+            const item = document.createElement('div');
+            item.className = 'cg-item';
+            const nameEl = document.createElement('span');
+            nameEl.textContent = g.groupId;
+            const stateEl = document.createElement('span');
+            stateEl.className = `badge ${g.state === 'Stable' ? 'badge-green' : 'badge-yellow'}`;
+            stateEl.textContent = g.state || 'Unknown';
+            item.append(nameEl, stateEl);
+            body.appendChild(item);
         });
+    } catch { body.innerHTML = '<div style="color:var(--red);padding:1rem;text-align:center">Failed to load groups.</div>'; }
+};
 
-        // Regenerate logic
-        document.getElementById('regenerate-btn').addEventListener('click', async (e) => {
-            const btn = e.target;
-            const orig = btn.innerText;
-            btn.innerText = 'Regenerating...';
-            btn.disabled = true;
+$('refresh-cg-btn').addEventListener('click', loadConsumerGroups);
 
-            try {
-                const res = await fetch('/api/regenerate', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ accessToken: currentAccessToken })
-                });
-                const data = await res.json();
-                if (data.success) {
-                    document.getElementById('res-password').innerText = data.password;
-                    document.querySelectorAll('.ins-pass').forEach(el => el.innerText = data.password);
-                    
-                    const passCopyBtn = document.querySelector('button[data-copy="res-password"]');
-                    passCopyBtn.style.display = 'inline-block';
-                    document.getElementById('res-password').style.color = '';
-                    document.getElementById('res-password').style.fontStyle = 'normal';
-
-                    const codeBox = document.getElementById('res-password').parentElement;
-                    codeBox.style.background = 'rgba(46, 213, 115, 0.2)';
-                    codeBox.style.borderColor = '#2ed573';
-                    setTimeout(() => {
-                        codeBox.style.background = '';
-                        codeBox.style.borderColor = '';
-                    }, 2000);
-                    
-                    // Show and configure download btn
-                    const downloadBtn = document.getElementById('download-env-btn');
-                    downloadBtn.style.display = 'inline-block';
-                    downloadBtn.onclick = () => {
-                        const envContent = `KAFKA_BROKERS=broker.subartaghosh.co.in:9092\nKAFKA_USERNAME=${document.getElementById('res-username').innerText}\nKAFKA_PASSWORD=${data.password}\nKAFKA_TOPIC=${document.getElementById('res-topic').innerText}\n`;
-                        const blob = new Blob([envContent], { type: 'text/plain' });
-                        const url = URL.createObjectURL(blob);
-                        const a = document.createElement('a');
-                        a.href = url;
-                        a.download = '.env';
-                        document.body.appendChild(a);
-                        a.click();
-                        document.body.removeChild(a);
-                        URL.revokeObjectURL(url);
-                    };
-                } else {
-                    alert(data.error);
-                }
-            } catch (err) {
-                alert('Failed to regenerate password.');
-            } finally {
-                btn.innerText = orig;
-                btn.disabled = false;
-            }
+// ── ACCOUNT ACTIONS ────────────────────────────────────
+$('regenerate-btn').addEventListener('click', async () => {
+    if (!confirm('This changes your Kafka password. Update all your running clients after regenerating.\n\nContinue?')) return;
+    const btn = $('regenerate-btn');
+    btn.disabled = true; btn.innerText = 'Regenerating…';
+    try {
+        const res  = await fetch('/api/regenerate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ accessToken: currentAccessToken })
         });
+        const data = await res.json();
+        if (data.success) {
+            userPassword = data.password;
+            $('cred-password').innerText = userPassword;
+            passRevealed = true; $('pass-eye').innerText = '🙈';
+            showToast('🔑 New password set — save it now!', 6000);
+        } else { showToast('Error: ' + data.error, 4000); }
+    } catch { showToast('Server error.', 3000); }
+    finally { btn.disabled = false; btn.innerText = '🔄 Regenerate'; }
+});
 
-        // Delete logic
-        const deleteModal = document.getElementById('delete-modal');
-        document.getElementById('delete-btn').addEventListener('click', () => {
-            deleteModal.classList.add('show');
+$('delete-btn').addEventListener('click', async () => {
+    const u = $('cred-username').innerText;
+    if (!confirm(`DELETE ACCOUNT: ${u}\n\nThis will permanently remove:\n• Your Kafka user & credentials\n• ALL your topics & data\n• All ACL permissions\n\nThis cannot be undone. Type OK to confirm.`)) return;
+    try {
+        const res  = await fetch('/api/delete_account', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ accessToken: currentAccessToken })
         });
-        document.getElementById('cancel-delete').addEventListener('click', () => {
-            deleteModal.classList.remove('show');
-        });
-        document.getElementById('confirm-delete').addEventListener('click', async (e) => {
-            const btn = e.target;
-            btn.innerText = 'Deleting...';
-            btn.disabled = true;
+        const data = await res.json();
+        if (data.success) {
+            localStorage.removeItem('kb_token');
+            showToast('Account deleted. Returning to home…', 3500);
+            setTimeout(() => location.reload(), 3500);
+        } else { showToast('Error: ' + data.error, 4000); }
+    } catch { showToast('Server error.', 3000); }
+});
 
-            try {
-                const res = await fetch('/api/delete_account', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ accessToken: currentAccessToken })
-                });
-                if (res.ok) {
-                    window.location.href = '/';
-                } else {
-                    alert('Failed to delete account.');
-                    btn.innerText = 'Yes, Delete Everything';
-                    btn.disabled = false;
-                }
-            } catch (err) {
-                alert('Server error.');
-                btn.innerText = 'Yes, Delete Everything';
-                btn.disabled = false;
-            }
-        });
+// ── TAB SWITCHING ──────────────────────────────────────
+document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        const tabsEl = btn.parentElement;
+        const parentEl = tabsEl.parentElement;
+        tabsEl.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        parentEl.querySelectorAll('.tab-panel').forEach(p => p.classList.add('hidden'));
+        btn.classList.add('active');
+        $(btn.dataset.target).classList.remove('hidden');
+    });
+});
 
-        document.getElementById('logout-btn').addEventListener('click', (e) => {
-            e.preventDefault();
-            window.location.href = window.location.pathname;
-        });
+// ── MODAL BACKDROP CLOSE ───────────────────────────────
+document.querySelectorAll('.modal-overlay').forEach(o => {
+    o.addEventListener('click', e => { if (e.target === o) closeModal(o.id); });
+});
 
-        // Auto-refresh logic
-        let autoRefreshInterval = null;
-        const autoRefreshToggle = document.getElementById('auto-refresh-toggle');
-        
-        autoRefreshToggle.addEventListener('change', (e) => {
-            if (e.target.checked) {
-                autoRefreshInterval = setInterval(() => {
-                    const dataContent = document.getElementById('data-modal-content');
-                    fetch(`/api/topics/${currentViewTopic}/data`, {
-                        headers: { 'Authorization': `Bearer ${currentAccessToken}` }
-                    }).then(res => res.json()).then(data => {
-                        if (data.success) {
-                            if (data.data.length === 0) {
-                                dataContent.innerText = "No messages found yet. Try producing some data!";
-                            } else {
-                                dataContent.innerText = data.data.join('\n');
-                            }
-                        }
-                    }).catch(console.error);
-                }, 2000);
-            } else {
-                clearInterval(autoRefreshInterval);
-            }
-        });
-
-        // Ensure interval is cleared when modal is closed
-        const originalCloseDataModal = document.getElementById('close-data-modal').onclick;
-        document.getElementById('close-data-modal').addEventListener('click', () => {
-            clearInterval(autoRefreshInterval);
-            autoRefreshToggle.checked = false;
-        });
-    </script>
+// ── BOOT ───────────────────────────────────────────────
+init();
+</script>
 </body>
 </html>

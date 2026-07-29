@@ -3,284 +3,277 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Kafka Portal - Admin</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css">
+    <title>KafkaBase — Admin Console</title>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
     <style>
-        .admin-container {
-            max-width: 900px;
-            margin: 0 auto;
-        }
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 1rem;
-        }
-        th, td {
-            padding: 1rem;
-            text-align: left;
-            border-bottom: 1px solid rgba(255,255,255,0.1);
-        }
-        th {
-            background: rgba(255,255,255,0.05);
-            font-weight: 600;
-            color: #a5d6ff;
-        }
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 1rem;
-            margin-bottom: 2rem;
-        }
-        .stat-card {
-            background: rgba(255,255,255,0.05);
-            padding: 1.5rem;
-            border-radius: 8px;
-            text-align: center;
-        }
-        .stat-value {
-            font-size: 2rem;
-            font-weight: bold;
-            color: #ff4757;
-        }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+        --yellow:  #FFE500;
+        --black:   #111111;
+        --white:   #FFFFFF;
+        --bg:      #FFFEF2;
+        --red:     #FF3B30;
+        --green:   #1DB954;
+        --border:  3px solid #111111;
+        --shadow:  5px 5px 0 #111111;
+        --mono:    'DM Mono', monospace;
+        --sans:    'Space Grotesk', sans-serif;
+    }
+    body { font-family: var(--sans); background: var(--bg); color: var(--black); line-height: 1.5; min-height: 100vh; }
+    .hidden { display: none !important; }
+
+    /* Navbar */
+    .navbar { background: var(--black); border-bottom: var(--border); height: 56px; display: flex; align-items: center; }
+    .navbar-inner { max-width: 1140px; margin: 0 auto; width: 100%; padding: 0 1.5rem; display: flex; justify-content: space-between; align-items: center; }
+    .nav-logo { font-size: 1.1rem; font-weight: 800; color: var(--yellow); text-decoration: none; }
+    .nav-logo span { color: var(--white); }
+
+    /* Layout */
+    .container { max-width: 1140px; margin: 0 auto; padding: 2.5rem 1.5rem; }
+
+    /* Login Card */
+    .login-box { max-width: 400px; margin: 4rem auto; }
+
+    /* Cards */
+    .card { background: var(--white); border: var(--border); box-shadow: var(--shadow); margin-bottom: 1.5rem; }
+    .card-header { padding: 0.8rem 1.25rem; border-bottom: var(--border); background: var(--black); color: var(--white); font-weight: 800; font-size: 0.78rem; letter-spacing: 0.12em; text-transform: uppercase; display: flex; justify-content: space-between; align-items: center; }
+    .card-body { padding: 1.5rem; }
+
+    /* Buttons & Inputs */
+    .btn { display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.65rem 1.25rem; font-family: var(--sans); font-weight: 700; font-size: 0.88rem; border: var(--border); box-shadow: 4px 4px 0 var(--black); cursor: pointer; transition: all 0.1s ease; background: var(--white); color: var(--black); text-decoration: none; }
+    .btn:hover { transform: translate(-2px,-2px); box-shadow: 6px 6px 0 var(--black); }
+    .btn-yellow { background: var(--yellow); }
+    .btn-red { background: var(--red); color: var(--white); box-shadow: 4px 4px 0 #8B0000; }
+    .btn-sm { padding: 0.35rem 0.75rem; font-size: 0.78rem; box-shadow: 3px 3px 0 var(--black); }
+
+    .input { width: 100%; padding: 0.7rem 0.9rem; font-family: var(--mono); font-size: 0.88rem; border: var(--border); background: var(--bg); outline: none; margin-bottom: 1rem; }
+
+    /* Stats Grid */
+    .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
+    .stat-card { background: var(--yellow); border: var(--border); box-shadow: var(--shadow); padding: 1.25rem; }
+    .stat-val { font-size: 2.2rem; font-weight: 800; font-family: var(--mono); line-height: 1; margin-top: 0.4rem; }
+    .stat-lbl { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: #444; }
+
+    /* Table */
+    .user-table { width: 100%; border-collapse: collapse; }
+    .user-table th { background: var(--black); color: var(--white); padding: 0.6rem 1rem; text-align: left; font-size: 0.68rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; }
+    .user-table td { padding: 0.75rem 1rem; border-top: 2px solid #e8e8e8; font-size: 0.85rem; vertical-align: middle; }
+    .user-table tr:hover td { background: var(--bg); }
+    .mono { font-family: var(--mono); }
+
+    .badge { display: inline-block; padding: 0.15rem 0.55rem; font-size: 0.68rem; font-weight: 700; border: 2px solid var(--black); }
+    .badge-green { background: var(--green); color: var(--white); }
+    .badge-red { background: var(--red); color: var(--white); }
     </style>
 </head>
 <body>
-    <div class="background-animation">
-        <div class="glow-orb red"></div>
-        <div class="glow-orb blue"></div>
+
+<nav class="navbar">
+    <div class="navbar-inner">
+        <a href="/" class="nav-logo">KAFKA<span>BASE</span> <span style="font-size:0.75rem;color:var(--yellow);margin-left:0.5rem">ADMIN</span></a>
+        <a href="/" style="color:#888;font-size:0.78rem;font-weight:700;text-decoration:none">← PORTAL</a>
+    </div>
+</nav>
+
+<main class="container">
+    <!-- Login Box -->
+    <div id="login-section" class="card login-box">
+        <div class="card-header">Admin Authentication</div>
+        <div class="card-body">
+            <label style="display:block;font-size:0.7rem;font-weight:700;text-transform:uppercase;margin-bottom:0.3rem">Password</label>
+            <input type="password" id="admin-pass" class="input" placeholder="Enter admin password" />
+            <div id="login-err" style="color:var(--red);font-size:0.8rem;font-weight:700;margin-bottom:1rem;display:none"></div>
+            <button id="admin-login-btn" class="btn btn-yellow" style="width:100%;justify-content:center">Login</button>
+        </div>
     </div>
 
-    <main class="container admin-container">
-        <header>
-            <div class="logo">
-                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
-            </div>
-            <h1>Admin Control Panel</h1>
-        </header>
-
-        <!-- Login -->
-        <div id="login-section" class="glass-card" style="max-width: 400px; margin: 0 auto;">
-            <h2 style="text-align: center; margin-bottom: 1.5rem;">Authenticate</h2>
-            <div class="input-group">
-                <label>Username</label>
-                <input type="text" id="admin-user" placeholder="admin">
-            </div>
-            <div class="input-group">
-                <label>Password</label>
-                <input type="password" id="admin-pass">
-            </div>
-            <button id="login-btn" class="primary-btn">Login</button>
-            <div id="login-err" class="error"></div>
+    <!-- Dashboard -->
+    <div id="dashboard-section" class="hidden">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem">
+            <h2 style="font-size:1.8rem;font-weight:800">System Overview</h2>
+            <button id="admin-logout-btn" class="btn btn-red btn-sm">Log Out</button>
         </div>
 
-        <!-- Dashboard -->
-        <div id="dashboard-section" class="glass-card hidden">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
-                <span style="color: rgba(255,255,255,0.5); font-size: 0.9rem;">Admin Panel</span>
-                <button id="admin-logout-btn" style="color: #ff4757; background: rgba(255,71,87,0.1); border: 1px solid rgba(255,71,87,0.3); padding: 0.4rem 1rem; border-radius: 8px; cursor: pointer; font-size: 0.85rem;">Log Out</button>
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-lbl">Total Registered Users</div>
+                <div class="stat-val" id="stat-total-users">—</div>
             </div>
-            <div class="stats-grid">
-                <div class="stat-card">
-                    <div>Total Users</div>
-                    <div class="stat-value" id="stat-total">-</div>
-                </div>
-                <div class="stat-card">
-                    <div>Capacity</div>
-                    <div class="stat-value" id="stat-max">-</div>
-                </div>
-                <div class="stat-card">
-                    <div>Status</div>
-                    <div class="stat-value" style="color: #2ed573;">Online</div>
-                </div>
+            <div class="stat-card" style="background:var(--white)">
+                <div class="stat-lbl">System Load (1/5/15m)</div>
+                <div class="stat-val" id="stat-cpu" style="font-size:1.4rem;margin-top:0.8rem">—</div>
             </div>
+            <div class="stat-card" style="background:var(--white)">
+                <div class="stat-lbl">Free Memory</div>
+                <div class="stat-val" id="stat-mem" style="font-size:1.4rem;margin-top:0.8rem">—</div>
+            </div>
+        </div>
 
-            <h3 style="margin-bottom: 1rem; color: #fff; margin-top: 1rem;">Server Health</h3>
-            <div class="stats-grid" style="grid-template-columns: repeat(3, 1fr);">
-                <div class="stat-card">
-                    <div>CPU Load (1m, 5m, 15m)</div>
-                    <div class="stat-value" id="stat-cpu" style="font-size: 1.2rem; margin-top: 0.5rem; color: #a5d6ff;">-</div>
-                </div>
-                <div class="stat-card">
-                    <div>Total Memory</div>
-                    <div class="stat-value" id="stat-mem-total" style="font-size: 1.5rem; margin-top: 0.5rem; color: #a5d6ff;">-</div>
-                </div>
-                <div class="stat-card">
-                    <div>Free Memory</div>
-                    <div class="stat-value" id="stat-mem-free" style="font-size: 1.5rem; margin-top: 0.5rem; color: #2ed573;">-</div>
-                </div>
+        <div class="card" style="padding:0">
+            <div class="card-header">
+                <span>User Registry</span>
+                <button id="refresh-users-btn" class="btn btn-sm" style="color:var(--white)">↻ Refresh</button>
             </div>
-
-            <h3 style="margin-bottom: 1rem; color: #fff;">Registered Developers</h3>
-            <div style="overflow-x: auto;">
-                <table>
+            <div style="overflow-x:auto">
+                <table class="user-table">
                     <thead>
                         <tr>
                             <th>Kafka Username</th>
                             <th>GitHub Handle</th>
-                            <th>Storage (MB)</th>
-                            <th>Quota Status</th>
+                            <th>Storage Used</th>
+                            <th>Status</th>
                             <th>Created At</th>
-                            <th>Actions</th>
+                            <th>Action</th>
                         </tr>
                     </thead>
-                    <tbody id="users-tbody">
-                        <tr><td colspan="5" style="text-align: center; color: #888;">Loading...</td></tr>
+                    <tbody id="user-tbody">
+                        <tr><td colspan="6" style="text-align:center;padding:2rem;color:#888">Loading users...</td></tr>
                     </tbody>
                 </table>
             </div>
         </div>
-    </main>
+    </div>
+</main>
 
-    <script>
-        let authToken = sessionStorage.getItem('adminToken');
-        
-        const showLogin = () => {
-            document.getElementById('login-section').classList.remove('hidden');
-            document.getElementById('dashboard-section').classList.add('hidden');
-        };
+<script>
+let authToken = sessionStorage.getItem('adminToken');
 
-        const showDashboard = () => {
-            document.getElementById('login-section').classList.add('hidden');
-            document.getElementById('dashboard-section').classList.remove('hidden');
-            loadData();
-        };
+const showLogin = () => {
+    document.getElementById('login-section').classList.remove('hidden');
+    document.getElementById('dashboard-section').classList.add('hidden');
+};
 
-        const loadData = async () => {
-            try {
-                const res = await fetch('/api/admin/users', {
-                    headers: { 'Authorization': `Basic ${authToken}` }
-                });
-                if (res.status === 401) {
-                    sessionStorage.removeItem('adminToken');
-                    showLogin();
-                    return;
-                }
-                const data = await res.json();
-                
-                document.getElementById('stat-total').innerText = data.total_users;
-                document.getElementById('stat-max').innerText = data.max_users;
+const showDashboard = () => {
+    document.getElementById('login-section').classList.add('hidden');
+    document.getElementById('dashboard-section').classList.remove('hidden');
+    fetchStats();
+    fetchUsers();
+};
 
-                fetch('/api/admin/health', { headers: { 'Authorization': `Basic ${authToken}` } })
-                    .then(r => r.json())
-                    .then(health => {
-                        if(health.success) {
-                            document.getElementById('stat-cpu').innerText = health.cpu_load.map(l => l.toFixed(2)).join(', ');
-                            document.getElementById('stat-mem-total').innerText = health.total_mem_mb + ' MB';
-                            
-                            const freeMemEl = document.getElementById('stat-mem-free');
-                            freeMemEl.innerText = health.free_mem_mb + ' MB';
-                            
-                            const memPercent = health.free_mem_mb / health.total_mem_mb;
-                            if (memPercent < 0.1) {
-                                freeMemEl.style.color = '#ff4757'; // red
-                            } else if (memPercent < 0.3) {
-                                freeMemEl.style.color = '#ffa502'; // orange
-                            } else {
-                                freeMemEl.style.color = '#2ed573'; // green
-                            }
-                        }
-                    }).catch(console.error);
-
-                const tbody = document.getElementById('users-tbody');
-                tbody.innerHTML = '';
-                
-                if (Object.keys(data.users).length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: #888;">No users found.</td></tr>';
-                    return;
-                }
-
-                for (const [username, info] of Object.entries(data.users)) {
-                    const tr = document.createElement('tr');
-                    
-                    const storageStr = info.storageMB !== undefined ? `${info.storageMB} MB` : '0.00 MB';
-                    const isExceeded = info.quotaExceeded;
-                    const quotaBadge = isExceeded 
-                        ? `<span style="color: #ff4757; font-weight: bold;">BLOCKED</span>` 
-                        : `<span style="color: #2ed573;">OK</span>`;
-
-                    // Safe DOM construction — no innerHTML with user-controlled data
-                    [
-                        [username, 'font-family: monospace; color: #a5d6ff;'],
-                        [info.githubHandle || info.githubId, ''],
-                        [storageStr, 'font-family: monospace;'],
-                        [null, '', quotaBadge],  // quota badge uses safe hardcoded html
-                        [new Date(info.created_at).toLocaleDateString(), '']
-                    ].forEach(([text, style, html]) => {
-                        const td = document.createElement('td');
-                        if (style) td.style.cssText = style;
-                        if (html) td.innerHTML = html;  // quotaBadge is hardcoded — safe
-                        else td.textContent = text;
-                        tr.appendChild(td);
-                    });
-                    const actionTd = document.createElement('td');
-                    const delBtn = document.createElement('button');
-                    delBtn.className = 'primary-btn btn-danger';
-                    delBtn.style.cssText = 'padding: 0.4rem 0.8rem; font-size: 0.8rem;';
-                    delBtn.textContent = 'Delete User';
-                    delBtn.addEventListener('click', () => deleteUser(username));
-                    actionTd.appendChild(delBtn);
-                    tr.appendChild(actionTd);
-                }
-            } catch (err) {
-                alert('Failed to load admin data');
-            }
-        };
-
-        window.deleteUser = async (username) => {
-            if (!confirm(`WARNING: This will permanently delete user ${username}, all their topics, data, and credentials. Are you sure?`)) return;
-            
-            try {
-                const res = await fetch(`/api/admin/users/${username}`, {
-                    method: 'DELETE',
-                    headers: { 'Authorization': `Basic ${authToken}` }
-                });
-                const data = await res.json();
-                if (data.success) {
-                    loadData();
-                } else {
-                    alert('Error: ' + data.error);
-                }
-            } catch (err) {
-                alert('Server error.');
-            }
-        };
-
-        document.getElementById('login-btn').addEventListener('click', async () => {
-            const u = document.getElementById('admin-user').value;
-            const p = document.getElementById('admin-pass').value;
-            const token = btoa(`${u}:${p}`);
-            
-            try {
-                const res = await fetch('/api/admin/login', {
-                    method: 'POST',
-                    headers: { 'Authorization': `Basic ${token}` }
-                });
-                if (res.ok) {
-                    authToken = token;
-                    sessionStorage.setItem('adminToken', token);
-                    showDashboard();
-                } else {
-                    document.getElementById('login-err').innerText = 'Invalid credentials';
-                    document.getElementById('login-err').classList.add('show');
-                }
-            } catch(e) {
-                document.getElementById('login-err').innerText = 'Server error';
-                document.getElementById('login-err').classList.add('show');
-            }
+const fetchStats = async () => {
+    try {
+        const res = await fetch('/api/admin/health', {
+            headers: { 'Authorization': `Basic ${authToken}` }
         });
-
-        document.getElementById('admin-logout-btn').addEventListener('click', () => {
+        if (res.status === 401) {
             sessionStorage.removeItem('adminToken');
-            authToken = null;
             showLogin();
-        });
+            return;
+        }
+        const data = await res.json();
+        if (data.success) {
+            document.getElementById('stat-cpu').innerText = data.cpu_load.map(n => n.toFixed(2)).join(', ');
+            document.getElementById('stat-mem').innerText = `${data.free_mem_mb} MB / ${data.total_mem_mb} MB`;
+        }
+    } catch (err) { console.error('Stats fetch failed', err); }
+};
 
-        if (authToken) {
+const fetchUsers = async () => {
+    const tbody = document.getElementById('user-tbody');
+    try {
+        const res = await fetch('/api/admin/users', {
+            headers: { 'Authorization': `Basic ${authToken}` }
+        });
+        const data = await res.json();
+        if (data.success) {
+            document.getElementById('stat-total-users').innerText = `${data.total_users} / 200`;
+            tbody.innerHTML = '';
+            
+            const users = data.users;
+            const usernames = Object.keys(users);
+            if (usernames.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:2rem;color:#888">No users found.</td></tr>';
+                return;
+            }
+
+            usernames.forEach(username => {
+                const info = users[username];
+                const tr = document.createElement('tr');
+
+                const storageMB = info.storageMB || 0;
+                const storageStr = `${storageMB} MB / 125 MB`;
+                const isBlocked = info.quotaExceeded === 1;
+
+                const userTd = document.createElement('td'); userTd.className = 'mono'; userTd.style.fontWeight = 'bold'; userTd.textContent = username;
+                const ghTd = document.createElement('td'); ghTd.textContent = info.githubHandle || info.githubId;
+                const storeTd = document.createElement('td'); storeTd.className = 'mono'; storeTd.textContent = storageStr;
+                
+                const statusTd = document.createElement('td');
+                statusTd.innerHTML = isBlocked ? '<span class="badge badge-red">BLOCKED</span>' : '<span class="badge badge-green">OK</span>';
+                
+                const dateTd = document.createElement('td'); dateTd.textContent = new Date(info.created_at).toLocaleDateString();
+
+                const actTd = document.createElement('td');
+                const delBtn = document.createElement('button');
+                delBtn.className = 'btn btn-red btn-sm';
+                delBtn.textContent = 'Delete';
+                delBtn.addEventListener('click', () => deleteUser(username));
+                actTd.appendChild(delBtn);
+
+                tr.append(userTd, ghTd, storeTd, statusTd, dateTd, actTd);
+                tbody.appendChild(tr);
+            });
+        }
+    } catch (err) {
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--red);padding:2rem">Failed to load users</td></tr>';
+    }
+};
+
+const deleteUser = async (username) => {
+    if (!confirm(`Are you sure you want to PERMANENTLY DELETE user "${username}"?`)) return;
+    try {
+        const res = await fetch(`/api/admin/users/${username}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Basic ${authToken}` }
+        });
+        const data = await res.json();
+        if (data.success) {
+            fetchUsers();
+        } else {
+            alert(data.error || 'Failed to delete user');
+        }
+    } catch (err) {
+        alert('Server error deleting user');
+    }
+};
+
+document.getElementById('admin-login-btn').addEventListener('click', async () => {
+    const pass = document.getElementById('admin-pass').value.trim();
+    if (!pass) return;
+    const token = btoa(`admin:${pass}`);
+    try {
+        const res = await fetch('/api/admin/login', {
+            method: 'POST',
+            headers: { 'Authorization': `Basic ${token}` }
+        });
+        if (res.ok) {
+            authToken = token;
+            sessionStorage.setItem('adminToken', token);
+            document.getElementById('login-err').style.display = 'none';
             showDashboard();
         } else {
-            showLogin();
+            const errEl = document.getElementById('login-err');
+            errEl.innerText = 'Invalid credentials';
+            errEl.style.display = 'block';
         }
-    </script>
+    } catch (err) {
+        alert('Login failed');
+    }
+});
+
+document.getElementById('admin-logout-btn').addEventListener('click', () => {
+    sessionStorage.removeItem('adminToken');
+    authToken = null;
+    showLogin();
+});
+
+document.getElementById('refresh-users-btn').addEventListener('click', fetchUsers);
+
+if (authToken) {
+    showDashboard();
+} else {
+    showLogin();
+}
+</script>
 </body>
 </html>
