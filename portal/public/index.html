@@ -1080,26 +1080,35 @@ const loadConsumerGroups = async () => {
 if ($('refresh-cg-btn')) $('refresh-cg-btn').addEventListener('click', loadConsumerGroups);
 
 // ── ACCOUNT ACTIONS ────────────────────────────────────
+let regenArmed = false, regenTimer = null;
 $('regenerate-btn').addEventListener('click', async () => {
-    if (!confirm('This changes your Kafka password. Update all your running clients after regenerating.\n\nContinue?')) return;
     const btn = $('regenerate-btn');
+    if (!regenArmed) {
+        regenArmed = true;
+        btn.innerText = '⚠️ Confirm Regen?';
+        btn.style.background = '#ff6600';
+        regenTimer = setTimeout(() => {
+            regenArmed = false;
+            btn.innerText = '🔄 Regenerate';
+            btn.style.background = '';
+        }, 3000);
+        return;
+    }
+    // Second click — confirmed
+    clearTimeout(regenTimer);
+    regenArmed = false;
+    btn.style.background = '';
     btn.disabled = true; btn.innerText = 'Regenerating…';
-
-    // Sync token from localStorage in case it changed
     if (!currentAccessToken) currentAccessToken = localStorage.getItem('kb_token') || '';
     if (!currentAccessToken) {
-        showToast('Not logged in — please refresh and log in again.', 5000);
+        showToast('Not logged in — please refresh.', 4000);
         btn.disabled = false; btn.innerText = '🔄 Regenerate';
         return;
     }
-
     try {
         const res = await fetch('/api/regenerate', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${currentAccessToken}`
-            },
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${currentAccessToken}` },
             body: JSON.stringify({ accessToken: currentAccessToken })
         });
         const data = await res.json();
@@ -1118,16 +1127,25 @@ $('regenerate-btn').addEventListener('click', async () => {
     }
 });
 
+let deleteArmed = false, deleteTimer = null;
 $('delete-btn').addEventListener('click', async () => {
-    const u = $('cred-username').innerText;
-    if (!confirm(`DELETE ACCOUNT: ${u}\n\nThis will permanently remove:\n• Your Kafka user & credentials\n• ALL your topics & data\n• All ACL permissions\n\nThis cannot be undone. Type OK to confirm.`)) return;
+    const btn = $('delete-btn');
+    if (!deleteArmed) {
+        deleteArmed = true;
+        btn.innerText = '⚠️ Click again to DELETE';
+        deleteTimer = setTimeout(() => {
+            deleteArmed = false;
+            btn.innerText = '🗑 Delete Account';
+        }, 4000);
+        return;
+    }
+    clearTimeout(deleteTimer);
+    deleteArmed = false;
+    btn.disabled = true; btn.innerText = 'Deleting…';
     try {
-        const res  = await fetch('/api/delete_account', {
+        const res = await fetch('/api/delete_account', {
             method: 'POST',
-            headers: { 
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${currentAccessToken}`
-            },
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${currentAccessToken}` },
             body: JSON.stringify({ accessToken: currentAccessToken })
         });
         const data = await res.json();
@@ -1137,6 +1155,7 @@ $('delete-btn').addEventListener('click', async () => {
             setTimeout(() => location.reload(), 3500);
         } else { showToast('Error: ' + data.error, 4000); }
     } catch { showToast('Server error.', 3000); }
+    finally { btn.disabled = false; btn.innerText = '🗑 Delete Account'; }
 });
 
 // ── TAB SWITCHING ──────────────────────────────────────
