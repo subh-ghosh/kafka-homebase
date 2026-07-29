@@ -3,8 +3,8 @@ const { Kafka } = require('kafkajs')
 async function run() {
   const kafka = new Kafka({
     clientId: 'test-app',
-    brokers: ['kafka.subartaghosh.co.in:9092'],
-    ssl: true,
+    brokers: ['broker.subartaghosh.co.in:9092'],
+    ssl: { rejectUnauthorized: false },
     sasl: {
       mechanism: 'scram-sha-512',
       username: 'subartaghosh',

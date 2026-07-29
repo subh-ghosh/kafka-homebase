@@ -33,7 +33,14 @@ const ensureDbSchema = (db) => {
     return db;
 };
 
-// Endpoint for frontend to get the Client ID to redirect users to GitHub
+const generatePassword = (length) => {
+    return crypto.randomBytes(length).toString('base64').replace(/[^a-zA-Z0-9]/g, '').substring(0, length) + "!";
+};
+
+const generateRandomUsername = () => {
+    return 'user_' + crypto.randomBytes(4).toString('hex');
+};
+
 app.get('/api/config', (req, res) => {
     res.json({ clientId: GITHUB_CLIENT_ID });
 });
@@ -52,43 +59,67 @@ const runCommand = (command) => {
 };
 
 // -----------------------------------------------------
-// PUBLIC REGISTRATION ROUTE
+// PUBLIC ROUTES
 // -----------------------------------------------------
-app.post('/api/register', async (req, res) => {
-    const { username, code } = req.body;
 
-    if (!GITHUB_CLIENT_ID || !GITHUB_CLIENT_SECRET) {
-        return res.status(500).json({ error: 'GitHub OAuth is not configured on the server.' });
-    }
+// Get current user credentials
+app.get('/api/user', async (req, res) => {
+    const authHeader = req.headers['authorization'];
+    if (!authHeader) return res.status(401).json({ error: 'Missing token' });
+    const code = authHeader.split(' ')[1];
 
-    if (!username || !/^[a-z0-9_]{3,15}$/.test(username)) {
-        return res.status(400).json({ error: 'Invalid username. Must be 3-15 lowercase letters, numbers, or underscores only.' });
-    }
-
-    if (!code) {
-        return res.status(400).json({ error: 'Missing GitHub authorization code.' });
-    }
-
-    // 1. Exchange code for GitHub Access Token
     let accessToken = null;
     try {
         const tokenRes = await axios.post('https://github.com/login/oauth/access_token', {
             client_id: GITHUB_CLIENT_ID,
             client_secret: GITHUB_CLIENT_SECRET,
             code: code
-        }, {
-            headers: { Accept: 'application/json' }
-        });
-        
-        if (tokenRes.data.error) {
-            return res.status(401).json({ error: 'GitHub authorization failed or code expired.' });
-        }
+        }, { headers: { Accept: 'application/json' } });
+        if (tokenRes.data.error) return res.status(401).json({ error: 'Token exchange failed' });
         accessToken = tokenRes.data.access_token;
     } catch (err) {
-        return res.status(500).json({ error: 'Failed to communicate with GitHub.' });
+        return res.status(500).json({ error: 'GitHub auth failed' });
     }
 
-    // 2. Fetch GitHub User Profile
+    let githubId = null;
+    try {
+        const userRes = await axios.get('https://api.github.com/user', { headers: { Authorization: `Bearer ${accessToken}` } });
+        githubId = userRes.data.id.toString();
+    } catch (err) {
+        return res.status(500).json({ error: 'GitHub profile failed' });
+    }
+
+    let db = JSON.parse(fs.readFileSync(DB_FILE));
+    db = ensureDbSchema(db);
+
+    let foundUser = null;
+    let foundData = null;
+    for (const [username, data] of Object.entries(db.user_mappings)) {
+        if (data.githubId === githubId) {
+            foundUser = username;
+            foundData = data;
+            break;
+        }
+    }
+
+    if (foundUser && foundData) {
+        res.json({
+            exists: true,
+            username: foundUser,
+            password: foundData.password || '',
+            topic: foundData.topicName || `${foundUser}.events`,
+            accessToken // Give access token back to frontend to reuse
+        });
+    } else {
+        res.json({ exists: false, accessToken });
+    }
+});
+
+// Register new user
+app.post('/api/register', async (req, res) => {
+    const { accessToken } = req.body;
+    if (!accessToken) return res.status(400).json({ error: 'Missing access token.' });
+
     let githubId = null;
     let githubHandle = null;
     try {
@@ -101,39 +132,32 @@ app.post('/api/register', async (req, res) => {
         return res.status(500).json({ error: 'Failed to fetch GitHub profile.' });
     }
 
-    // 3. Global Abuse Protection Logic
     let db = JSON.parse(fs.readFileSync(DB_FILE));
     db = ensureDbSchema(db);
     
     if (db.githubIds && db.githubIds.includes(githubId)) {
-        return res.status(403).json({ error: 'Your GitHub account has already registered a Kafka account. Only one account per person is allowed.' });
+        return res.status(403).json({ error: 'Account already exists.' });
     }
 
     if (db.total_users >= MAX_GLOBAL_USERS) {
-        return res.status(403).json({ error: 'Global capacity reached. This free-tier server cannot host any more users.' });
+        return res.status(403).json({ error: 'Global capacity reached.' });
     }
 
-    if (db.users.includes(username)) {
-        return res.status(400).json({ error: 'Username is already taken. Please choose another.' });
-    }
-
-    // 4. Provision Kafka Resources
-    const password = crypto.randomBytes(12).toString('base64').replace(/[^a-zA-Z0-9]/g, '').substring(0, 16) + "!";
+    const username = generateRandomUsername();
+    const password = generatePassword(16);
     const topicName = `${username}.events`;
     
     try {
         const adminProps = '/etc/kafka/admin.properties';
-        
         if (fs.existsSync('/opt/kafka/bin/kafka-configs.sh')) {
-            await runCommand(`/opt/kafka/bin/kafka-configs.sh --bootstrap-server kafka.subartaghosh.co.in:9092 --command-config ${adminProps} --alter --add-config "SCRAM-SHA-512=[iterations=4096,password=${password}]" --entity-type users --entity-name ${username}`);
-            await runCommand(`/opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka.subartaghosh.co.in:9092 --command-config ${adminProps} --create --if-not-exists --topic ${topicName} --partitions 3 --replication-factor 1`);
-            await runCommand(`/opt/kafka/bin/kafka-acls.sh --bootstrap-server kafka.subartaghosh.co.in:9092 --command-config ${adminProps} --add --allow-principal "User:${username}" --operation Read --operation Write --operation Describe --operation Create --topic "${username}." --resource-pattern-type prefixed`);
-            await runCommand(`/opt/kafka/bin/kafka-acls.sh --bootstrap-server kafka.subartaghosh.co.in:9092 --command-config ${adminProps} --add --allow-principal "User:${username}" --operation Read --operation Describe --group "${username}" --resource-pattern-type prefixed`);
+            await runCommand(`/opt/kafka/bin/kafka-configs.sh --bootstrap-server broker.subartaghosh.co.in:9092 --command-config ${adminProps} --alter --add-config "SCRAM-SHA-512=[iterations=4096,password=${password}]" --entity-type users --entity-name ${username}`);
+            await runCommand(`/opt/kafka/bin/kafka-topics.sh --bootstrap-server broker.subartaghosh.co.in:9092 --command-config ${adminProps} --create --if-not-exists --topic ${topicName} --partitions 3 --replication-factor 1`);
+            await runCommand(`/opt/kafka/bin/kafka-acls.sh --bootstrap-server broker.subartaghosh.co.in:9092 --command-config ${adminProps} --add --allow-principal "User:${username}" --operation Read --operation Write --operation Describe --operation Create --topic "${username}." --resource-pattern-type prefixed`);
+            await runCommand(`/opt/kafka/bin/kafka-acls.sh --bootstrap-server broker.subartaghosh.co.in:9092 --command-config ${adminProps} --add --allow-principal "User:${username}" --operation Read --operation Describe --group "${username}" --resource-pattern-type prefixed`);
         } else {
             console.log(`[DRY RUN - Windows local] Created user ${username} with topic ${topicName} for GitHub ID ${githubId}`);
         }
 
-        // Save to DB
         db.total_users += 1;
         db.users.push(username);
         if (!db.githubIds) db.githubIds = [];
@@ -142,6 +166,8 @@ app.post('/api/register', async (req, res) => {
         db.user_mappings[username] = {
             githubId: githubId,
             githubHandle: githubHandle,
+            password: password,
+            topicName: topicName,
             created_at: new Date().toISOString()
         };
 
@@ -151,13 +177,103 @@ app.post('/api/register', async (req, res) => {
             success: true,
             username,
             password,
-            topic: topicName,
-            bootstrap: 'kafka.subartaghosh.co.in:9092'
+            topic: topicName
         });
-
     } catch (err) {
         console.error("Failed to provision user:", err);
         res.status(500).json({ error: 'Internal server error while provisioning Kafka resources.' });
+    }
+});
+
+// Regenerate Credentials
+app.post('/api/regenerate', async (req, res) => {
+    const { accessToken } = req.body;
+    if (!accessToken) return res.status(400).json({ error: 'Missing access token.' });
+
+    let githubId = null;
+    try {
+        const userRes = await axios.get('https://api.github.com/user', { headers: { Authorization: `Bearer ${accessToken}` } });
+        githubId = userRes.data.id.toString();
+    } catch (err) {
+        return res.status(500).json({ error: 'GitHub profile failed' });
+    }
+
+    let db = JSON.parse(fs.readFileSync(DB_FILE));
+    db = ensureDbSchema(db);
+
+    let foundUser = null;
+    for (const [username, data] of Object.entries(db.user_mappings)) {
+        if (data.githubId === githubId) {
+            foundUser = username;
+            break;
+        }
+    }
+
+    if (!foundUser) return res.status(404).json({ error: 'User not found.' });
+
+    const newPassword = generatePassword(16);
+
+    try {
+        const adminProps = '/etc/kafka/admin.properties';
+        if (fs.existsSync('/opt/kafka/bin/kafka-configs.sh')) {
+            await runCommand(`/opt/kafka/bin/kafka-configs.sh --bootstrap-server broker.subartaghosh.co.in:9092 --command-config ${adminProps} --alter --add-config "SCRAM-SHA-512=[iterations=4096,password=${newPassword}]" --entity-type users --entity-name ${foundUser}`);
+        }
+
+        db.user_mappings[foundUser].password = newPassword;
+        fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2));
+
+        res.json({ success: true, password: newPassword });
+    } catch (err) {
+        console.error("Failed to regenerate password:", err);
+        res.status(500).json({ error: 'Failed to update Kafka credentials' });
+    }
+});
+
+// Delete Account
+app.post('/api/delete_account', async (req, res) => {
+    const { accessToken } = req.body;
+    if (!accessToken) return res.status(400).json({ error: 'Missing access token.' });
+
+    let githubId = null;
+    try {
+        const userRes = await axios.get('https://api.github.com/user', { headers: { Authorization: `Bearer ${accessToken}` } });
+        githubId = userRes.data.id.toString();
+    } catch (err) {
+        return res.status(500).json({ error: 'GitHub profile failed' });
+    }
+
+    let db = JSON.parse(fs.readFileSync(DB_FILE));
+    db = ensureDbSchema(db);
+
+    let foundUser = null;
+    for (const [username, data] of Object.entries(db.user_mappings)) {
+        if (data.githubId === githubId) {
+            foundUser = username;
+            break;
+        }
+    }
+
+    if (!foundUser) return res.status(404).json({ error: 'User not found.' });
+
+    try {
+        const adminProps = '/etc/kafka/admin.properties';
+        if (fs.existsSync('/opt/kafka/bin/kafka-configs.sh')) {
+            await runCommand(`/opt/kafka/bin/kafka-configs.sh --bootstrap-server broker.subartaghosh.co.in:9092 --command-config ${adminProps} --alter --delete-config "SCRAM-SHA-512" --entity-type users --entity-name ${foundUser}`);
+            await runCommand(`/opt/kafka/bin/kafka-topics.sh --bootstrap-server broker.subartaghosh.co.in:9092 --command-config ${adminProps} --delete --topic "${foundUser}.events"`);
+            await runCommand(`/opt/kafka/bin/kafka-acls.sh --bootstrap-server broker.subartaghosh.co.in:9092 --command-config ${adminProps} --remove --allow-principal "User:${foundUser}" --operation Read --operation Write --operation Describe --operation Create --topic "${foundUser}." --resource-pattern-type prefixed --force`);
+            await runCommand(`/opt/kafka/bin/kafka-acls.sh --bootstrap-server broker.subartaghosh.co.in:9092 --command-config ${adminProps} --remove --allow-principal "User:${foundUser}" --operation Read --operation Describe --group "${foundUser}" --resource-pattern-type prefixed --force`);
+        }
+
+        db.users = db.users.filter(u => u !== foundUser);
+        db.githubIds = db.githubIds.filter(id => id !== githubId);
+        delete db.user_mappings[foundUser];
+        db.total_users -= 1;
+        fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2));
+
+        res.json({ success: true });
+    } catch (err) {
+        console.error("Failed to delete account:", err);
+        res.status(500).json({ error: 'Failed to delete account from Kafka.' });
     }
 });
 
@@ -202,27 +318,18 @@ app.delete('/api/admin/users/:username', adminAuth, async (req, res) => {
     try {
         const adminProps = '/etc/kafka/admin.properties';
         if (fs.existsSync('/opt/kafka/bin/kafka-configs.sh')) {
-            // Delete SCRAM credentials
-            await runCommand(`/opt/kafka/bin/kafka-configs.sh --bootstrap-server kafka.subartaghosh.co.in:9092 --command-config ${adminProps} --alter --delete-config "SCRAM-SHA-512" --entity-type users --entity-name ${username}`);
-            // Delete Topic
-            await runCommand(`/opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka.subartaghosh.co.in:9092 --command-config ${adminProps} --delete --topic "${username}.events"`);
-            // Delete ACLs (Topic)
-            await runCommand(`/opt/kafka/bin/kafka-acls.sh --bootstrap-server kafka.subartaghosh.co.in:9092 --command-config ${adminProps} --remove --allow-principal "User:${username}" --operation Read --operation Write --operation Describe --operation Create --topic "${username}." --resource-pattern-type prefixed --force`);
-            // Delete ACLs (Group)
-            await runCommand(`/opt/kafka/bin/kafka-acls.sh --bootstrap-server kafka.subartaghosh.co.in:9092 --command-config ${adminProps} --remove --allow-principal "User:${username}" --operation Read --operation Describe --group "${username}" --resource-pattern-type prefixed --force`);
-        } else {
-            console.log(`[DRY RUN - Windows local] Deleted user ${username}`);
+            await runCommand(`/opt/kafka/bin/kafka-configs.sh --bootstrap-server broker.subartaghosh.co.in:9092 --command-config ${adminProps} --alter --delete-config "SCRAM-SHA-512" --entity-type users --entity-name ${username}`);
+            await runCommand(`/opt/kafka/bin/kafka-topics.sh --bootstrap-server broker.subartaghosh.co.in:9092 --command-config ${adminProps} --delete --topic "${username}.events"`);
+            await runCommand(`/opt/kafka/bin/kafka-acls.sh --bootstrap-server broker.subartaghosh.co.in:9092 --command-config ${adminProps} --remove --allow-principal "User:${username}" --operation Read --operation Write --operation Describe --operation Create --topic "${username}." --resource-pattern-type prefixed --force`);
+            await runCommand(`/opt/kafka/bin/kafka-acls.sh --bootstrap-server broker.subartaghosh.co.in:9092 --command-config ${adminProps} --remove --allow-principal "User:${username}" --operation Read --operation Describe --group "${username}" --resource-pattern-type prefixed --force`);
         }
 
-        // Clean up DB
         db.users = db.users.filter(u => u !== username);
-        
         if (db.user_mappings[username]) {
             const githubId = db.user_mappings[username].githubId;
             db.githubIds = db.githubIds.filter(id => id !== githubId);
             delete db.user_mappings[username];
         }
-        
         db.total_users -= 1;
         fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2));
 

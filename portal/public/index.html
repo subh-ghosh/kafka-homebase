@@ -21,6 +21,64 @@
         .footer-support a:hover {
             text-decoration: underline;
         }
+        .account-management {
+            margin-top: 2rem;
+            padding-top: 1.5rem;
+            border-top: 1px solid rgba(255,255,255,0.1);
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+        }
+        .btn-warning {
+            background: rgba(255, 159, 67, 0.2);
+            color: #ff9f43;
+            border: 1px solid #ff9f43;
+        }
+        .btn-warning:hover {
+            background: rgba(255, 159, 67, 0.4);
+        }
+        .btn-danger {
+            background: rgba(238, 82, 83, 0.2);
+            color: #ee5253;
+            border: 1px solid #ee5253;
+        }
+        .btn-danger:hover {
+            background: rgba(238, 82, 83, 0.4);
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.8);
+            backdrop-filter: blur(5px);
+            align-items: center;
+            justify-content: center;
+        }
+        .modal.show {
+            display: flex;
+        }
+        .modal-content {
+            background: #1e272e;
+            padding: 2rem;
+            border-radius: 12px;
+            border: 1px solid rgba(255,255,255,0.1);
+            max-width: 400px;
+            text-align: center;
+        }
+        .modal-content h3 {
+            margin-bottom: 1rem;
+            color: #ff4757;
+        }
+        .modal-actions {
+            display: flex;
+            gap: 1rem;
+            margin-top: 1.5rem;
+            justify-content: center;
+        }
     </style>
 </head>
 <body>
@@ -51,31 +109,31 @@
             <div id="login-error" class="error"></div>
         </div>
 
-        <!-- Registration Form Card -->
+        <!-- Setup loading / generation -->
         <div id="setup-card" class="glass-card hidden">
             <h2 style="text-align: center; margin-bottom: 1.5rem;">GitHub Verified!</h2>
-            <form id="register-form">
-                <div class="input-group">
-                    <label for="username">Choose your Kafka Username</label>
-                    <input type="text" id="username" name="username" placeholder="e.g. jdoe_app" required pattern="^[a-zA-Z0-9_]+$" title="Alphanumeric and underscores only">
-                    <span class="hint">Your topics will be prefixed with this name.</span>
-                </div>
-
-                <button type="submit" id="submit-btn" class="primary-btn">
-                    <span class="btn-text">Generate Credentials</span>
-                    <div class="spinner"></div>
-                </button>
-            </form>
+            <p style="text-align: center; margin-bottom: 2rem; color: var(--text-muted); font-size: 0.9rem;">
+                Click below to instantly provision your dedicated Kafka username, password, and isolated topic.
+            </p>
+            <button id="generate-btn" class="primary-btn">
+                <span class="btn-text">Generate Credentials</span>
+                <div class="spinner"></div>
+            </button>
             <div id="error-message" class="error"></div>
+        </div>
+
+        <!-- Check loading -->
+        <div id="loading-card" class="glass-card hidden" style="text-align: center;">
+            <div class="spinner show" style="margin: 0 auto; display: block; border-left-color: #ff4757;"></div>
+            <p style="margin-top: 1rem; color: #bbb;">Authenticating...</p>
         </div>
 
         <!-- Result Card -->
         <div id="result-card" class="glass-card hidden" style="max-width: 700px; margin: 0 auto;">
             <div class="success-header">
                 <div class="check-icon">✓</div>
-                <h2>Account Provisioned!</h2>
+                <h2>Your Account Dashboard</h2>
             </div>
-            <p style="text-align: center; color: #ff4757; font-weight: bold; margin-bottom: 1.5rem;">Save these details immediately. You will not be able to see this password again.</p>
             
             <div class="credentials-grid">
                 <div class="cred-item">
@@ -113,7 +171,7 @@
             
             <div class="instructions" style="margin-top: 2rem; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 1.5rem;">
                 <h3 style="margin-bottom: 1rem;">How to Connect</h3>
-                <p style="font-size: 0.9rem; color: #bbb; margin-bottom: 1rem;">Your permissions allow you to Read, Write, and Create <strong>any topic</strong> that starts with <code><span id="res-prefix"></span>.</code>. You do not need a dashboard to create topics—simply create them directly from your code!</p>
+                <p style="font-size: 0.9rem; color: #bbb; margin-bottom: 1rem;">Your permissions allow you to Read, Write, and Create <strong>any topic</strong> that starts with <code id="res-prefix"></code>. You do not need a dashboard to create topics—simply create them directly from your code!</p>
                 
                 <div class="code-tabs">
                     <button class="tab-btn active" data-target="code-python">Python</button>
@@ -173,15 +231,35 @@ producer.send(new ProducerRecord&lt;&gt;("<span class="ins-top"></span>", "key",
 producer.close();</code></pre>
                 </div>
             </div>
+
+            <!-- Account Management -->
+            <div class="account-management">
+                <button id="regenerate-btn" class="primary-btn btn-warning">🔄 Regenerate Password</button>
+                <button id="delete-btn" class="primary-btn btn-danger">🗑️ Delete Account</button>
+            </div>
         </div>
         
         <!-- Support Footer -->
         <div class="footer-support">
-            Lost your credentials? <a href="mailto:subartaghosh6@gmail.com">Contact Support</a>
+            Need help? <a href="mailto:subartaghosh6@gmail.com">Contact Support</a>
         </div>
     </main>
 
+    <!-- Delete Modal -->
+    <div id="delete-modal" class="modal">
+        <div class="modal-content">
+            <h3>Delete Account</h3>
+            <p>Are you sure? This will instantly delete your credentials and drop all your Kafka topics permanently. This cannot be undone.</p>
+            <div class="modal-actions">
+                <button id="cancel-delete" class="primary-btn" style="background: rgba(255,255,255,0.1);">Cancel</button>
+                <button id="confirm-delete" class="primary-btn btn-danger">Yes, Delete Everything</button>
+            </div>
+        </div>
+    </div>
+
     <script>
+        let currentAccessToken = null;
+
         // Copy to clipboard logic
         document.querySelectorAll('.copy-btn').forEach(btn => {
             btn.addEventListener('click', (e) => {
@@ -209,13 +287,30 @@ producer.close();</code></pre>
             });
         });
 
-        // DOM Elements
+        const populateDashboard = (data) => {
+            document.getElementById('res-username').innerText = data.username;
+            document.getElementById('res-password').innerText = data.password;
+            document.getElementById('res-topic').innerText = data.topic;
+            document.getElementById('res-prefix').innerText = data.username + ".";
+
+            document.querySelectorAll('.ins-user').forEach(el => el.innerText = data.username);
+            document.querySelectorAll('.ins-pass').forEach(el => el.innerText = data.password);
+            document.querySelectorAll('.ins-top').forEach(el => el.innerText = data.topic);
+            
+            document.getElementById('login-card').style.display = 'none';
+            document.getElementById('setup-card').style.display = 'none';
+            document.getElementById('loading-card').style.display = 'none';
+            
+            const resultCard = document.getElementById('result-card');
+            resultCard.style.display = 'block';
+            setTimeout(() => resultCard.classList.remove('hidden'), 50);
+        };
+
         const loginCard = document.getElementById('login-card');
         const setupCard = document.getElementById('setup-card');
+        const loadingCard = document.getElementById('loading-card');
         const resultCard = document.getElementById('result-card');
         const githubBtn = document.getElementById('github-login-btn');
-        const form = document.getElementById('register-form');
-        const submitBtn = document.getElementById('submit-btn');
         const errorMsg = document.getElementById('error-message');
         const loginErrorMsg = document.getElementById('login-error');
 
@@ -224,8 +319,37 @@ producer.close();</code></pre>
 
         if (githubCode) {
             loginCard.style.display = 'none';
-            setupCard.classList.remove('hidden');
+            loadingCard.classList.remove('hidden');
             window.history.replaceState({}, document.title, "/");
+            
+            fetch('/api/user', {
+                headers: { 'Authorization': `Bearer ${githubCode}` }
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.error) {
+                    loadingCard.classList.add('hidden');
+                    loginCard.style.display = 'block';
+                    loginErrorMsg.innerText = data.error;
+                    loginErrorMsg.classList.add('show');
+                    return;
+                }
+                
+                currentAccessToken = data.accessToken;
+                
+                if (data.exists) {
+                    populateDashboard(data);
+                } else {
+                    loadingCard.classList.add('hidden');
+                    setupCard.classList.remove('hidden');
+                }
+            })
+            .catch(err => {
+                loadingCard.classList.add('hidden');
+                loginCard.style.display = 'block';
+                loginErrorMsg.innerText = 'Server error during authentication.';
+                loginErrorMsg.classList.add('show');
+            });
         }
 
         githubBtn.addEventListener('click', async () => {
@@ -247,42 +371,23 @@ producer.close();</code></pre>
             }
         });
 
-        form.addEventListener('submit', async (e) => {
-            e.preventDefault();
+        document.getElementById('generate-btn').addEventListener('click', async () => {
             errorMsg.innerText = '';
             errorMsg.classList.remove('show');
-            submitBtn.classList.add('loading');
-            
-            const username = document.getElementById('username').value;
+            const btn = document.getElementById('generate-btn');
+            btn.classList.add('loading');
 
             try {
                 const response = await fetch('/api/register', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ username, code: githubCode })
+                    body: JSON.stringify({ accessToken: currentAccessToken })
                 });
 
                 const data = await response.json();
 
                 if (response.ok && data.success) {
-                    document.getElementById('res-bootstrap').innerText = data.bootstrap;
-                    document.getElementById('res-username').innerText = data.username;
-                    document.getElementById('res-password').innerText = data.password;
-                    document.getElementById('res-topic').innerText = data.topic;
-                    document.getElementById('res-prefix').innerText = data.username;
-
-                    // Inject into code snippets
-                    document.querySelectorAll('.ins-boot').forEach(el => el.innerText = data.bootstrap);
-                    document.querySelectorAll('.ins-user').forEach(el => el.innerText = data.username);
-                    document.querySelectorAll('.ins-pass').forEach(el => el.innerText = data.password);
-                    document.querySelectorAll('.ins-top').forEach(el => el.innerText = data.topic);
-
-                    setupCard.classList.add('hidden');
-                    setTimeout(() => {
-                        setupCard.style.display = 'none';
-                        resultCard.style.display = 'block';
-                        setTimeout(() => resultCard.classList.remove('hidden'), 50);
-                    }, 400);
+                    populateDashboard(data);
                 } else {
                     errorMsg.innerText = data.error || 'An unexpected error occurred.';
                     errorMsg.classList.add('show');
@@ -291,7 +396,76 @@ producer.close();</code></pre>
                 errorMsg.innerText = 'Failed to connect to the server.';
                 errorMsg.classList.add('show');
             } finally {
-                submitBtn.classList.remove('loading');
+                btn.classList.remove('loading');
+            }
+        });
+
+        // Regenerate logic
+        document.getElementById('regenerate-btn').addEventListener('click', async (e) => {
+            const btn = e.target;
+            const orig = btn.innerText;
+            btn.innerText = 'Regenerating...';
+            btn.disabled = true;
+
+            try {
+                const res = await fetch('/api/regenerate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ accessToken: currentAccessToken })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    document.getElementById('res-password').innerText = data.password;
+                    document.querySelectorAll('.ins-pass').forEach(el => el.innerText = data.password);
+                    
+                    const codeBox = document.getElementById('res-password').parentElement;
+                    codeBox.style.background = 'rgba(46, 213, 115, 0.2)';
+                    codeBox.style.borderColor = '#2ed573';
+                    setTimeout(() => {
+                        codeBox.style.background = '';
+                        codeBox.style.borderColor = '';
+                    }, 2000);
+                } else {
+                    alert(data.error);
+                }
+            } catch (err) {
+                alert('Failed to regenerate password.');
+            } finally {
+                btn.innerText = orig;
+                btn.disabled = false;
+            }
+        });
+
+        // Delete logic
+        const deleteModal = document.getElementById('delete-modal');
+        document.getElementById('delete-btn').addEventListener('click', () => {
+            deleteModal.classList.add('show');
+        });
+        document.getElementById('cancel-delete').addEventListener('click', () => {
+            deleteModal.classList.remove('show');
+        });
+        document.getElementById('confirm-delete').addEventListener('click', async (e) => {
+            const btn = e.target;
+            btn.innerText = 'Deleting...';
+            btn.disabled = true;
+
+            try {
+                const res = await fetch('/api/delete_account', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ accessToken: currentAccessToken })
+                });
+                if (res.ok) {
+                    window.location.href = '/';
+                } else {
+                    alert('Failed to delete account.');
+                    btn.innerText = 'Yes, Delete Everything';
+                    btn.disabled = false;
+                }
+            } catch (err) {
+                alert('Server error.');
+                btn.innerText = 'Yes, Delete Everything';
+                btn.disabled = false;
             }
         });
     </script>
