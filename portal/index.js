@@ -109,8 +109,12 @@ const generatePassword = (length) => {
     return crypto.randomBytes(length).toString('base64').replace(/[^a-zA-Z0-9]/g, '').substring(0, length) + "!";
 };
 
-const generateRandomUsername = () => {
-    return 'user_' + crypto.randomBytes(4).toString('hex');
+const sanitizeGithubUsername = async (handle) => {
+    let clean = (handle || '').toLowerCase().replace(/[^a-z0-9_-]/g, '_').substring(0, 35);
+    if (!clean) clean = 'user_' + crypto.randomBytes(4).toString('hex');
+    const existing = await db.getUserByName(clean);
+    if (!existing) return clean;
+    return `${clean}_${crypto.randomBytes(2).toString('hex')}`;
 };
 
 app.get('/api/config', (req, res) => {
@@ -262,7 +266,7 @@ app.post('/api/register', registerLimiter, async (req, res) => {
         return res.status(403).json({ error: 'Global capacity reached.' });
     }
 
-    const username = generateRandomUsername();
+    const username = await sanitizeGithubUsername(githubHandle);
     const password = generatePassword(16);
     const topicName = `${username}.events`;
 
