@@ -1,5 +1,6 @@
 const express = require('express');
 const cors = require('cors');
+const bodyParser = require('body-parser');
 const { exec } = require('child_process');
 const crypto = require('crypto');
 const fs = require('fs');
@@ -12,27 +13,26 @@ const rateLimit = require('express-rate-limit');
 const db = require('./db');
 
 const app = express();
-app.set('trust proxy', 1); // Enable proxy trust for Cloudflare
-app.use(cors({ origin: process.env.ALLOWED_ORIGIN || '*' }));
-app.use(express.json({ limit: '16kb' }));  // Express 5 built-in JSON parser
+app.use(cors({ origin: process.env.ALLOWED_ORIGIN || 'https://kafka.subartaghosh.co.in' }));
+app.use(bodyParser.json({ limit: '16kb' }));
 app.use(express.static('public'));
 
 // ── Rate Limiters ────────────────────────────────────────
 // Tight limit on account creation (heavy: creates Kafka user + topic + ACLs)
 const registerLimiter = rateLimit({
     windowMs: 60 * 60 * 1000,  // 1 hour
-    max: 10,
+    max: 5,
     standardHeaders: true,
     legacyHeaders: false,
     message: { error: 'Too many registration attempts. Try again in an hour.' }
 });
 // Moderate limit on credential mutation routes
 const mutationLimiter = rateLimit({
-    windowMs: 15 * 60 * 1000,  // 15 minutes
-    max: 50,
+    windowMs: 60 * 60 * 1000,  // 1 hour
+    max: 15,
     standardHeaders: true,
     legacyHeaders: false,
-    message: { error: 'Too many requests. Try again in a few minutes.' }
+    message: { error: 'Too many requests. Try again in an hour.' }
 });
 // General API limit (covers topic reads, produce, consumer groups etc.)
 const apiLimiter = rateLimit({
@@ -105,22 +105,12 @@ const TOKEN_TTL = 5 * 60 * 1000;
 const VALID_USERNAME_RE = /^user_[a-f0-9]{8}$/;
 const isValidUsername = (u) => VALID_USERNAME_RE.test(u);
 
-const generatePassword = (length = 16) => {
-    const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-    const bytes = crypto.randomBytes(length);
-    let res = '';
-    for (let i = 0; i < length; i++) {
-        res += chars[bytes[i] % chars.length];
-    }
-    return res + '!';
+const generatePassword = (length) => {
+    return crypto.randomBytes(length).toString('base64').replace(/[^a-zA-Z0-9]/g, '').substring(0, length) + "!";
 };
 
-const sanitizeGithubUsername = async (handle) => {
-    let clean = (handle || '').toLowerCase().replace(/[^a-z0-9_-]/g, '_').substring(0, 35);
-    if (!clean) clean = 'user_' + crypto.randomBytes(4).toString('hex');
-    const existing = await db.getUserByName(clean);
-    if (!existing) return clean;
-    return `${clean}_${crypto.randomBytes(2).toString('hex')}`;
+const generateRandomUsername = () => {
+    return 'user_' + crypto.randomBytes(4).toString('hex');
 };
 
 app.get('/api/config', (req, res) => {
@@ -272,7 +262,7 @@ app.post('/api/register', registerLimiter, async (req, res) => {
         return res.status(403).json({ error: 'Global capacity reached.' });
     }
 
-    const username = await sanitizeGithubUsername(githubHandle);
+    const username = generateRandomUsername();
     const password = generatePassword(16);
     const topicName = `${username}.events`;
 
@@ -306,20 +296,32 @@ app.post('/api/register', registerLimiter, async (req, res) => {
 
 // Regenerate Credentials
 app.post('/api/regenerate', mutationLimiter, async (req, res) => {
-    const username = await verifyUserHelper(req, res);
-    if (!username) return;
+    const { accessToken } = req.body;
+    if (!accessToken) return res.status(400).json({ error: 'Missing access token.' });
+
+    let githubId = null;
+    try {
+        const userRes = await axios.get('https://api.github.com/user', { headers: { Authorization: `Bearer ${accessToken}` } });
+        githubId = userRes.data.id.toString();
+    } catch (err) {
+        return res.status(500).json({ error: 'GitHub profile failed' });
+    }
+
+    const foundData = await db.getUserByGithubId(githubId);
+    if (!foundData) return res.status(404).json({ error: 'User not found.' });
 
     const newPassword = generatePassword(16);
+    const foundUser = foundData.username;
 
     try {
         await shellQueue.add(async () => {
             const adminProps = '/etc/kafka/admin.properties';
             if (fs.existsSync('/opt/kafka/bin/kafka-configs.sh')) {
-                await runCommand(`/opt/kafka/bin/kafka-configs.sh --bootstrap-server broker.subartaghosh.co.in:9092 --command-config ${adminProps} --alter --add-config 'SCRAM-SHA-512=[iterations=4096,password=${newPassword}]' --entity-type users --entity-name ${username}`);
+                await runCommand(`/opt/kafka/bin/kafka-configs.sh --bootstrap-server broker.subartaghosh.co.in:9092 --command-config ${adminProps} --alter --add-config "SCRAM-SHA-512=[iterations=4096,password=${newPassword}]" --entity-type users --entity-name ${foundUser}`);
             }
         });
 
-        await db.updateUpdatedAt(username);
+        await db.updateUpdatedAt(foundUser);
         res.json({ success: true, password: newPassword });
     } catch (err) {
         console.error("Failed to regenerate password:", err);
@@ -329,14 +331,26 @@ app.post('/api/regenerate', mutationLimiter, async (req, res) => {
 
 // Delete Account
 app.post('/api/delete_account', mutationLimiter, async (req, res) => {
-    const username = await verifyUserHelper(req, res);
-    if (!username) return;
+    const { accessToken } = req.body;
+    if (!accessToken) return res.status(400).json({ error: 'Missing access token.' });
+
+    let githubId = null;
+    try {
+        const userRes = await axios.get('https://api.github.com/user', { headers: { Authorization: `Bearer ${accessToken}` } });
+        githubId = userRes.data.id.toString();
+    } catch (err) {
+        return res.status(500).json({ error: 'GitHub profile failed' });
+    }
+
+    const foundData = await db.getUserByGithubId(githubId);
+    if (!foundData) return res.status(404).json({ error: 'User not found.' });
+    const foundUser = foundData.username;
 
     try {
         // Delete ALL user-owned topics (not just .events) via native Kafka API
         const admin = await getAdmin();
         const allTopics = await admin.listTopics();
-        const userTopics = allTopics.filter(t => t.startsWith(`${username}.`));
+        const userTopics = allTopics.filter(t => t.startsWith(`${foundUser}.`));
         if (userTopics.length > 0) {
             await admin.deleteTopics({ topics: userTopics });
         }
@@ -345,17 +359,17 @@ app.post('/api/delete_account', mutationLimiter, async (req, res) => {
         await shellQueue.add(async () => {
             const adminProps = '/etc/kafka/admin.properties';
             if (fs.existsSync('/opt/kafka/bin/kafka-configs.sh')) {
-                await safeRunCommand(`/opt/kafka/bin/kafka-configs.sh --bootstrap-server broker.subartaghosh.co.in:9092 --command-config ${adminProps} --alter --delete-config 'SCRAM-SHA-512' --entity-type users --entity-name ${username}`);
-                await safeRunCommand(`/opt/kafka/bin/kafka-acls.sh --bootstrap-server broker.subartaghosh.co.in:9092 --command-config ${adminProps} --remove --allow-principal "User:${username}" --operation Read --operation Write --operation Describe --operation Create --topic "${username}." --resource-pattern-type prefixed --force`);
-                await safeRunCommand(`/opt/kafka/bin/kafka-acls.sh --bootstrap-server broker.subartaghosh.co.in:9092 --command-config ${adminProps} --remove --allow-principal "User:${username}" --operation Read --operation Describe --group "${username}" --resource-pattern-type prefixed --force`);
+                await safeRunCommand(`/opt/kafka/bin/kafka-configs.sh --bootstrap-server broker.subartaghosh.co.in:9092 --command-config ${adminProps} --alter --delete-config "SCRAM-SHA-512" --entity-type users --entity-name ${foundUser}`);
+                await safeRunCommand(`/opt/kafka/bin/kafka-acls.sh --bootstrap-server broker.subartaghosh.co.in:9092 --command-config ${adminProps} --remove --allow-principal "User:${foundUser}" --operation Read --operation Write --operation Describe --operation Create --topic "${foundUser}." --resource-pattern-type prefixed --force`);
+                await safeRunCommand(`/opt/kafka/bin/kafka-acls.sh --bootstrap-server broker.subartaghosh.co.in:9092 --command-config ${adminProps} --remove --allow-principal "User:${foundUser}" --operation Read --operation Describe --group "${foundUser}" --resource-pattern-type prefixed --force`);
             }
         });
 
-        await db.deleteUser(username);
+        await db.deleteUser(foundUser);
         res.json({ success: true });
     } catch (err) {
-        console.error("Failed to delete account:", err);
-        res.status(500).json({ error: 'Failed to delete account resources' });
+        console.error('Failed to delete account:', err);
+        res.status(500).json({ error: 'Failed to delete account from Kafka.' });
     }
 });
 

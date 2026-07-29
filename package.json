@@ -1,24 +1,4 @@
 {
-  "name": "streambase",
-  "version": "1.0.0",
-  "description": "Production-Grade, SASL/SSL-Secured Managed Apache Kafka® Infrastructure for Students & Developers",
-  "homepage": "https://streambase.subartaghosh.co.in",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/subh-ghosh/kafka-homebase.git"
-  },
-  "keywords": [
-    "kafka",
-    "apache-kafka",
-    "streambase",
-    "managed-kafka",
-    "scram-sha-512",
-    "sasl-ssl",
-    "kraft",
-    "streaming"
-  ],
-  "author": "Subarta Ghosh",
-  "license": "MIT",
   "dependencies": {
     "kafkajs": "^2.2.4"
   }
