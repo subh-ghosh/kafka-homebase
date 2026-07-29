@@ -24,9 +24,6 @@ const GITHUB_CLIENT_ID = process.env.GITHUB_CLIENT_ID || '';
 const GITHUB_CLIENT_SECRET = process.env.GITHUB_CLIENT_SECRET || '';
 const ADMIN_USER = process.env.ADMIN_USER || 'admin';
 const ADMIN_PASS = process.env.ADMIN_PASS || 'Zxcasq481062@';
-// Kafka broker SASL credentials (separate from portal admin login)
-const KAFKA_ADMIN_USER = process.env.KAFKA_ADMIN_USER || 'admin';
-const KAFKA_ADMIN_PASS = process.env.KAFKA_ADMIN_PASS || 'admin';
 
 // Queue to handle heavy shell operations concurrently
 const shellQueue = new PQueue({ concurrency: 2 });
@@ -38,8 +35,8 @@ const kafkaClient = new Kafka({
     ssl: { rejectUnauthorized: false },
     sasl: {
         mechanism: 'scram-sha-512',
-        username: KAFKA_ADMIN_USER,
-        password: KAFKA_ADMIN_PASS
+        username: ADMIN_USER,
+        password: ADMIN_PASS
     }
 });
 
@@ -301,7 +298,7 @@ app.get('/api/topics', async (req, res) => {
         await admin.connect();
         const allTopics = await admin.listTopics();
         await admin.disconnect();
-        
+
         const topics = allTopics.filter(t => t.startsWith(`${username}.`));
         res.json({ success: true, topics });
     } catch (err) {
@@ -363,16 +360,18 @@ app.get('/api/topics/:topic/data', async (req, res) => {
     }
 
     try {
+        // Use admin kafkaClient to fetch offsets
         const admin = kafkaClient.admin();
         await admin.connect();
         const offsets = await admin.fetchTopicOffsets(topic);
         await admin.disconnect();
 
-        const consumer = kafkaClient.consumer({ groupId: `portal-viewer-${Date.now()}` });
+        // Admin consumer reads the topic
+        const consumer = kafkaClient.consumer({ groupId: `portal-viewer-${username}-${Date.now()}` });
         await consumer.connect();
         await consumer.subscribe({ topic, fromBeginning: false });
-        
-        // Seek to end - 20 messages per partition roughly
+
+        // Seek to end - 20 messages per partition
         for (const p of offsets) {
             let start = parseInt(p.high) - 20;
             if (start < parseInt(p.low)) start = parseInt(p.low);
@@ -381,22 +380,20 @@ app.get('/api/topics/:topic/data', async (req, res) => {
         }
 
         let data = [];
-        let fetched = 0;
 
         await consumer.run({
             eachMessage: async ({ message }) => {
                 data.push(message.value.toString());
-                fetched++;
             },
         });
 
-        // Wait a short time to collect messages then disconnect
-        await new Promise(r => setTimeout(r, 800));
+        // Wait to collect messages then disconnect
+        await new Promise(r => setTimeout(r, 1500));
         await consumer.disconnect();
-        
+
         res.json({ success: true, data: data.slice(-20) });
     } catch (err) {
-        console.error("Data fetch error:", err);
+        console.error('Data fetch error:', err.message || err);
         res.status(500).json({ error: 'Failed to fetch topic data' });
     }
 });
@@ -515,12 +512,12 @@ const getUserStorageMB = (username) => {
 app.get('/api/admin/users', adminAuth, async (req, res) => {
     const users = await db.getAllUsers();
     const total_users = users.length;
-    
+
     const usersWithStats = {};
     for (const info of users) {
-        usersWithStats[info.username] = { 
-            ...info, 
-            storageMB: getUserStorageMB(info.username) 
+        usersWithStats[info.username] = {
+            ...info,
+            storageMB: getUserStorageMB(info.username)
         };
     }
 
@@ -576,7 +573,7 @@ const checkDiskUsage = async () => {
     for (const info of users) {
         const username = info.username;
         const storageMB = parseFloat(getUserStorageMB(username));
-        
+
         if (storageMB > MAX_MB && info.quotaExceeded === 0) {
             // Revoke write ACL
             await shellQueue.add(async () => {
