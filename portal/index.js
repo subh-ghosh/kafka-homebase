@@ -1,7 +1,6 @@
 const express = require('express');
 const cors = require('cors');
 const bodyParser = require('body-parser');
-const rateLimit = require('express-rate-limit');
 const { exec } = require('child_process');
 const crypto = require('crypto');
 const fs = require('fs');
@@ -20,20 +19,8 @@ const DB_FILE = path.join(__dirname, 'db.json');
 
 // Initialize database
 if (!fs.existsSync(DB_FILE)) {
-    fs.writeFileSync(DB_FILE, JSON.stringify({ total_users: 0, users: [] }));
+    fs.writeFileSync(DB_FILE, JSON.stringify({ total_users: 0, users: [], ips: [] }));
 }
-
-// IP Rate Limiter: Max 1 request per IP per 24 hours
-const ipLimiter = rateLimit({
-    windowMs: 24 * 60 * 60 * 1000, // 24 hrs
-    max: 1, // 1 account per IP per day
-    message: { error: 'You have reached the maximum number of accounts you can create today. Please try again tomorrow.' },
-    standardHeaders: true,
-    legacyHeaders: false,
-});
-
-// Apply rate limiter to registration endpoint
-app.use('/api/register', ipLimiter);
 
 // Helper to run shell commands
 const runCommand = (command) => {
@@ -50,6 +37,7 @@ const runCommand = (command) => {
 
 app.post('/api/register', async (req, res) => {
     const { username, inviteCode } = req.body;
+    const clientIp = req.ip;
 
     // 1. Validation Logic
     if (!username || !/^[a-z0-9_]{3,15}$/.test(username)) {
@@ -62,6 +50,12 @@ app.post('/api/register', async (req, res) => {
 
     // 2. Global Abuse Protection Logic
     const db = JSON.parse(fs.readFileSync(DB_FILE));
+    
+    // Check if IP has already registered FOREVER
+    if (db.ips && db.ips.includes(clientIp)) {
+        return res.status(403).json({ error: 'This IP address has already registered an account. Only one account per person is allowed.' });
+    }
+
     if (db.total_users >= MAX_GLOBAL_USERS) {
         return res.status(403).json({ error: 'Global capacity reached. This free-tier server cannot host any more users.' });
     }
@@ -95,9 +89,11 @@ app.post('/api/register', async (req, res) => {
             console.log(`[DRY RUN - Windows local] Created user ${username} with topic ${topicName}`);
         }
 
-        // Save to DB to track global limits
+        // Save to DB to track global limits and permanent IPs
         db.total_users += 1;
         db.users.push(username);
+        if (!db.ips) db.ips = [];
+        db.ips.push(clientIp);
         fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2));
 
         res.json({
@@ -116,5 +112,5 @@ app.post('/api/register', async (req, res) => {
 
 app.listen(PORT, () => {
     console.log(`Kafka Registration Portal running on port ${PORT}`);
-    console.log(`Abuse Protection Enabled: Max ${MAX_GLOBAL_USERS} users total. Rate limit: 3/day per IP.`);
+    console.log(`Abuse Protection Enabled: Max ${MAX_GLOBAL_USERS} users total. Rate limit: 1 per IP forever.`);
 });
