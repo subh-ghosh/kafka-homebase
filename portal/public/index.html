@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kafka Developer Portal</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="background-animation">
+        <div class="glow-orb red"></div>
+        <div class="glow-orb blue"></div>
+    </div>
+
+    <main class="container">
+        <header>
+            <div class="logo">
+                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"></path><line x1="4" y1="22" x2="4" y2="15"></line></svg>
+            </div>
+            <h1>Kafka Streaming Platform</h1>
+            <p>Generate your secure connection credentials instantly.</p>
+        </header>
+
+        <div id="setup-card" class="glass-card">
+            <form id="register-form">
+                <div class="input-group">
+                    <label for="username">Choose a Username</label>
+                    <input type="text" id="username" name="username" placeholder="e.g. jdoe_app" required pattern="^[a-zA-Z0-9_]+$" title="Alphanumeric and underscores only">
+                    <span class="hint">Your topics will be prefixed with this name.</span>
+                </div>
+                
+                <div class="input-group" id="invite-group" style="display: none;">
+                    <label for="inviteCode">Invite Code (Optional)</label>
+                    <input type="password" id="inviteCode" name="inviteCode" placeholder="Enter invite code if required">
+                </div>
+
+                <button type="submit" id="submit-btn" class="primary-btn">
+                    <span class="btn-text">Generate Credentials</span>
+                    <div class="spinner"></div>
+                </button>
+            </form>
+            <div id="error-message" class="error"></div>
+        </div>
+
+        <div id="result-card" class="glass-card hidden">
+            <div class="success-header">
+                <div class="check-icon">✓</div>
+                <h2>Account Provisioned!</h2>
+            </div>
+            <p>Save these details immediately. You will not be able to see this password again.</p>
+            
+            <div class="credentials-grid">
+                <div class="cred-item">
+                    <span class="cred-label">Bootstrap Server</span>
+                    <div class="cred-value-box">
+                        <code id="res-bootstrap"></code>
+                        <button class="copy-btn" data-copy="res-bootstrap">Copy</button>
+                    </div>
+                </div>
+                
+                <div class="cred-item">
+                    <span class="cred-label">Username</span>
+                    <div class="cred-value-box">
+                        <code id="res-username"></code>
+                        <button class="copy-btn" data-copy="res-username">Copy</button>
+                    </div>
+                </div>
+                
+                <div class="cred-item">
+                    <span class="cred-label">Password</span>
+                    <div class="cred-value-box highlight">
+                        <code id="res-password"></code>
+                        <button class="copy-btn" data-copy="res-password">Copy</button>
+                    </div>
+                </div>
+                
+                <div class="cred-item">
+                    <span class="cred-label">Your Default Topic</span>
+                    <div class="cred-value-box">
+                        <code id="res-topic"></code>
+                        <button class="copy-btn" data-copy="res-topic">Copy</button>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="instructions">
+                <h3>Connection Details</h3>
+                <ul>
+                    <li><strong>Protocol:</strong> <code>SASL_SSL</code></li>
+                    <li><strong>Mechanism:</strong> <code>SCRAM-SHA-512</code></li>
+                </ul>
+            </div>
+            
+            <button id="reset-btn" class="secondary-btn">Create Another Account</button>
+        </div>
+    </main>
+
+    <script>
+        // Copy to clipboard logic
+        document.querySelectorAll('.copy-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                const targetId = btn.getAttribute('data-copy');
+                const text = document.getElementById(targetId).innerText;
+                navigator.clipboard.writeText(text);
+                const originalText = btn.innerText;
+                btn.innerText = 'Copied!';
+                setTimeout(() => btn.innerText = originalText, 2000);
+            });
+        });
+
+        // Form submission logic
+        const form = document.getElementById('register-form');
+        const setupCard = document.getElementById('setup-card');
+        const resultCard = document.getElementById('result-card');
+        const submitBtn = document.getElementById('submit-btn');
+        const errorMsg = document.getElementById('error-message');
+        const resetBtn = document.getElementById('reset-btn');
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            errorMsg.innerText = '';
+            errorMsg.classList.remove('show');
+            
+            submitBtn.classList.add('loading');
+            
+            const username = document.getElementById('username').value;
+            const inviteCode = document.getElementById('inviteCode').value;
+
+            try {
+                const response = await fetch('/api/register', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, inviteCode })
+                });
+
+                const data = await response.json();
+
+                if (response.ok && data.success) {
+                    document.getElementById('res-bootstrap').innerText = data.bootstrap;
+                    document.getElementById('res-username').innerText = data.username;
+                    document.getElementById('res-password').innerText = data.password;
+                    document.getElementById('res-topic').innerText = data.topic;
+
+                    setupCard.classList.add('hidden');
+                    setTimeout(() => {
+                        setupCard.style.display = 'none';
+                        resultCard.style.display = 'block';
+                        setTimeout(() => resultCard.classList.remove('hidden'), 50);
+                    }, 400);
+                } else {
+                    errorMsg.innerText = data.error || 'An unexpected error occurred.';
+                    errorMsg.classList.add('show');
+                }
+            } catch (err) {
+                errorMsg.innerText = 'Failed to connect to the server.';
+                errorMsg.classList.add('show');
+            } finally {
+                submitBtn.classList.remove('loading');
+            }
+        });
+
+        resetBtn.addEventListener('click', () => {
+            resultCard.classList.add('hidden');
+            setTimeout(() => {
+                resultCard.style.display = 'none';
+                setupCard.style.display = 'block';
+                form.reset();
+                setTimeout(() => setupCard.classList.remove('hidden'), 50);
+            }, 400);
+        });
+    </script>
+</body>
+</html>
