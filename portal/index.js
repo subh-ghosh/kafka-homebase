@@ -58,6 +58,12 @@ const runCommand = (command) => {
     });
 };
 
+const safeRunCommand = (command) => {
+    return runCommand(command).catch(e => {
+        console.log(`[Ignored Delete Error] Command failed: ${command}`);
+    });
+};
+
 // -----------------------------------------------------
 // PUBLIC ROUTES
 // -----------------------------------------------------
@@ -299,10 +305,10 @@ app.post('/api/delete_account', async (req, res) => {
     try {
         const adminProps = '/etc/kafka/admin.properties';
         if (fs.existsSync('/opt/kafka/bin/kafka-configs.sh')) {
-            await runCommand(`/opt/kafka/bin/kafka-configs.sh --bootstrap-server broker.subartaghosh.co.in:9092 --command-config ${adminProps} --alter --delete-config "SCRAM-SHA-512" --entity-type users --entity-name ${foundUser}`);
-            await runCommand(`/opt/kafka/bin/kafka-topics.sh --bootstrap-server broker.subartaghosh.co.in:9092 --command-config ${adminProps} --delete --topic "${foundUser}.events"`);
-            await runCommand(`/opt/kafka/bin/kafka-acls.sh --bootstrap-server broker.subartaghosh.co.in:9092 --command-config ${adminProps} --remove --allow-principal "User:${foundUser}" --operation Read --operation Write --operation Describe --operation Create --topic "${foundUser}." --resource-pattern-type prefixed --force`);
-            await runCommand(`/opt/kafka/bin/kafka-acls.sh --bootstrap-server broker.subartaghosh.co.in:9092 --command-config ${adminProps} --remove --allow-principal "User:${foundUser}" --operation Read --operation Describe --group "${foundUser}" --resource-pattern-type prefixed --force`);
+            await safeRunCommand(`/opt/kafka/bin/kafka-configs.sh --bootstrap-server broker.subartaghosh.co.in:9092 --command-config ${adminProps} --alter --delete-config "SCRAM-SHA-512" --entity-type users --entity-name ${foundUser}`);
+            await safeRunCommand(`/opt/kafka/bin/kafka-topics.sh --bootstrap-server broker.subartaghosh.co.in:9092 --command-config ${adminProps} --delete --topic "${foundUser}.events"`);
+            await safeRunCommand(`/opt/kafka/bin/kafka-acls.sh --bootstrap-server broker.subartaghosh.co.in:9092 --command-config ${adminProps} --remove --allow-principal "User:${foundUser}" --operation Read --operation Write --operation Describe --operation Create --topic "${foundUser}." --resource-pattern-type prefixed --force`);
+            await safeRunCommand(`/opt/kafka/bin/kafka-acls.sh --bootstrap-server broker.subartaghosh.co.in:9092 --command-config ${adminProps} --remove --allow-principal "User:${foundUser}" --operation Read --operation Describe --group "${foundUser}" --resource-pattern-type prefixed --force`);
         }
 
         db.users = db.users.filter(u => u !== foundUser);
@@ -547,10 +553,10 @@ app.delete('/api/admin/users/:username', adminAuth, async (req, res) => {
     try {
         const adminProps = '/etc/kafka/admin.properties';
         if (fs.existsSync('/opt/kafka/bin/kafka-configs.sh')) {
-            await runCommand(`/opt/kafka/bin/kafka-configs.sh --bootstrap-server broker.subartaghosh.co.in:9092 --command-config ${adminProps} --alter --delete-config "SCRAM-SHA-512" --entity-type users --entity-name ${username}`);
-            await runCommand(`/opt/kafka/bin/kafka-topics.sh --bootstrap-server broker.subartaghosh.co.in:9092 --command-config ${adminProps} --delete --topic "${username}.events"`);
-            await runCommand(`/opt/kafka/bin/kafka-acls.sh --bootstrap-server broker.subartaghosh.co.in:9092 --command-config ${adminProps} --remove --allow-principal "User:${username}" --operation Read --operation Write --operation Describe --operation Create --topic "${username}." --resource-pattern-type prefixed --force`);
-            await runCommand(`/opt/kafka/bin/kafka-acls.sh --bootstrap-server broker.subartaghosh.co.in:9092 --command-config ${adminProps} --remove --allow-principal "User:${username}" --operation Read --operation Describe --group "${username}" --resource-pattern-type prefixed --force`);
+            await safeRunCommand(`/opt/kafka/bin/kafka-configs.sh --bootstrap-server broker.subartaghosh.co.in:9092 --command-config ${adminProps} --alter --delete-config "SCRAM-SHA-512" --entity-type users --entity-name ${username}`);
+            await safeRunCommand(`/opt/kafka/bin/kafka-topics.sh --bootstrap-server broker.subartaghosh.co.in:9092 --command-config ${adminProps} --delete --topic "${username}.events"`);
+            await safeRunCommand(`/opt/kafka/bin/kafka-acls.sh --bootstrap-server broker.subartaghosh.co.in:9092 --command-config ${adminProps} --remove --allow-principal "User:${username}" --operation Read --operation Write --operation Describe --operation Create --topic "${username}." --resource-pattern-type prefixed --force`);
+            await safeRunCommand(`/opt/kafka/bin/kafka-acls.sh --bootstrap-server broker.subartaghosh.co.in:9092 --command-config ${adminProps} --remove --allow-principal "User:${username}" --operation Read --operation Describe --group "${username}" --resource-pattern-type prefixed --force`);
         }
 
         db.users = db.users.filter(u => u !== username);
