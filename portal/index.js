@@ -62,6 +62,47 @@ const runCommand = (command) => {
 // PUBLIC ROUTES
 // -----------------------------------------------------
 
+// Helper for verifying access token
+const verifyUserHelper = async (req, res) => {
+    let accessToken = req.headers['authorization']?.split(' ')[1];
+    if (!accessToken && req.body && req.body.accessToken) {
+        accessToken = req.body.accessToken;
+    }
+    if (!accessToken) {
+        res.status(401).json({ error: 'Missing token' });
+        return null;
+    }
+
+    let githubId = null;
+    try {
+        const tokenRes = await axios.get('https://api.github.com/user', {
+            headers: { Authorization: `Bearer ${accessToken}` }
+        });
+        githubId = tokenRes.data.id.toString();
+    } catch (err) {
+        res.status(401).json({ error: 'Invalid or expired GitHub token' });
+        return null;
+    }
+
+    let db = JSON.parse(fs.readFileSync(DB_FILE));
+    db = ensureDbSchema(db);
+
+    let foundUser = null;
+    for (const [username, data] of Object.entries(db.user_mappings)) {
+        if (data.githubId === githubId) {
+            foundUser = username;
+            break;
+        }
+    }
+
+    if (!foundUser) {
+        res.status(404).json({ error: 'User not found in portal.' });
+        return null;
+    }
+
+    return foundUser;
+};
+
 // Get current user credentials
 app.get('/api/user', async (req, res) => {
     const authHeader = req.headers['authorization'];
@@ -273,6 +314,104 @@ app.post('/api/delete_account', async (req, res) => {
     } catch (err) {
         console.error("Failed to delete account:", err);
         res.status(500).json({ error: 'Failed to delete account from Kafka.' });
+    }
+});
+
+// -----------------------------------------------------
+// TOPIC MANAGEMENT ROUTES
+// -----------------------------------------------------
+
+app.get('/api/topics', async (req, res) => {
+    const username = await verifyUserHelper(req, res);
+    if (!username) return;
+
+    try {
+        const adminProps = '/etc/kafka/admin.properties';
+        if (fs.existsSync('/opt/kafka/bin/kafka-topics.sh')) {
+            const out = await runCommand(`/opt/kafka/bin/kafka-topics.sh --bootstrap-server broker.subartaghosh.co.in:9092 --command-config ${adminProps} --list`);
+            const topics = out.split('\n').map(t => t.trim()).filter(t => t.startsWith(`${username}.`));
+            res.json({ success: true, topics });
+        } else {
+            // Local fallback
+            res.json({ success: true, topics: [`${username}.events`] });
+        }
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Failed to list topics' });
+    }
+});
+
+app.post('/api/topics', async (req, res) => {
+    const username = await verifyUserHelper(req, res);
+    if (!username) return;
+    const { suffix } = req.body;
+    if (!suffix || !/^[a-zA-Z0-9_-]+$/.test(suffix)) {
+        return res.status(400).json({ error: 'Invalid topic suffix. Use alphanumeric characters, hyphens, and underscores.' });
+    }
+    const fullTopic = `${username}.${suffix}`;
+
+    try {
+        const adminProps = '/etc/kafka/admin.properties';
+        if (fs.existsSync('/opt/kafka/bin/kafka-topics.sh')) {
+            await runCommand(`/opt/kafka/bin/kafka-topics.sh --bootstrap-server broker.subartaghosh.co.in:9092 --command-config ${adminProps} --create --if-not-exists --topic ${fullTopic} --partitions 3 --replication-factor 1`);
+        }
+        res.json({ success: true, topic: fullTopic });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Failed to create topic' });
+    }
+});
+
+app.delete('/api/topics/:topic', async (req, res) => {
+    const username = await verifyUserHelper(req, res);
+    if (!username) return;
+    const topic = req.params.topic;
+    if (!topic.startsWith(`${username}.`)) {
+        return res.status(403).json({ error: 'You do not own this topic.' });
+    }
+
+    try {
+        const adminProps = '/etc/kafka/admin.properties';
+        if (fs.existsSync('/opt/kafka/bin/kafka-topics.sh')) {
+            await runCommand(`/opt/kafka/bin/kafka-topics.sh --bootstrap-server broker.subartaghosh.co.in:9092 --command-config ${adminProps} --delete --topic ${topic}`);
+        }
+        res.json({ success: true });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Failed to delete topic' });
+    }
+});
+
+app.get('/api/topics/:topic/data', async (req, res) => {
+    const username = await verifyUserHelper(req, res);
+    if (!username) return;
+    const topic = req.params.topic;
+    if (!topic.startsWith(`${username}.`)) {
+        return res.status(403).json({ error: 'You do not own this topic.' });
+    }
+
+    try {
+        const adminProps = '/etc/kafka/admin.properties';
+        let data = [];
+        if (fs.existsSync('/opt/kafka/bin/kafka-console-consumer.sh')) {
+            const out = await runCommand(`/opt/kafka/bin/kafka-console-consumer.sh --bootstrap-server broker.subartaghosh.co.in:9092 --consumer.config ${adminProps} --topic ${topic} --max-messages 20 --timeout-ms 2000`);
+            data = out.split('\n').filter(l => l.trim() !== '');
+        } else {
+            data = ['{"example": "test data locally"}'];
+        }
+        // Since timeout causes an exit code 1 sometimes if it doesn't read 20 messages, we should wrap the exec properly, but runCommand rejects on exit code 1.
+        // Wait, if it rejects on exit code 1, it will fall into catch block! We need to handle this.
+        res.json({ success: true, data });
+    } catch (err) {
+        // If it was just a timeout because less than 20 messages exist, it will throw an error containing the output.
+        // Node's child_process.exec returns stdout in the error object sometimes, or we can just swallow the error if stdout is present.
+        if (err.stdout) {
+            const data = err.stdout.split('\n').filter(l => l.trim() !== '');
+            res.json({ success: true, data });
+        } else {
+            console.error("Data fetch error:", err);
+            res.status(500).json({ error: 'Failed to fetch topic data' });
+        }
     }
 });
 

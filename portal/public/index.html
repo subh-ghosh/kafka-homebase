@@ -233,7 +233,21 @@ producer.close();</code></pre>
             </div>
 
             <!-- Account Management -->
-            <div class="account-management">
+            <div class="account-management" style="margin-top: 2rem; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 1.5rem;">
+                <h3 style="margin-bottom: 1rem; color: #fff;">Manage Topics</h3>
+                
+                <div style="display: flex; gap: 1rem; margin-bottom: 1.5rem;">
+                    <input type="text" id="new-topic-name" placeholder="Topic suffix (e.g. logs)" style="flex: 1; padding: 0.8rem; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: white; border-radius: 8px;">
+                    <button id="create-topic-btn" class="primary-btn" style="width: auto;">Create Topic</button>
+                </div>
+
+                <div id="topics-list" style="display: flex; flex-direction: column; gap: 0.8rem;">
+                    <!-- Topics will be injected here -->
+                    <div style="text-align: center; color: #888;">Loading topics...</div>
+                </div>
+            </div>
+
+            <div class="account-management" style="border-top: 1px solid rgba(255,255,255,0.1);">
                 <button id="regenerate-btn" class="primary-btn btn-warning">🔄 Regenerate Password</button>
                 <button id="delete-btn" class="primary-btn btn-danger">🗑️ Delete Account</button>
             </div>
@@ -253,6 +267,20 @@ producer.close();</code></pre>
             <div class="modal-actions">
                 <button id="cancel-delete" class="primary-btn" style="background: rgba(255,255,255,0.1);">Cancel</button>
                 <button id="confirm-delete" class="primary-btn btn-danger">Yes, Delete Everything</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Data Modal -->
+    <div id="data-modal" class="modal">
+        <div class="modal-content" style="max-width: 600px; width: 100%;">
+            <h3 id="data-modal-title">Topic Data</h3>
+            <p style="margin-bottom: 1rem; font-size: 0.85rem; color: #aaa;">Showing latest 20 messages.</p>
+            <div id="data-modal-content" style="background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); padding: 1rem; border-radius: 8px; text-align: left; max-height: 300px; overflow-y: auto; font-family: monospace; font-size: 0.9rem; color: #a5d6ff; white-space: pre-wrap; margin-bottom: 1.5rem;">
+                Loading...
+            </div>
+            <div class="modal-actions">
+                <button id="close-data-modal" class="primary-btn" style="background: rgba(255,255,255,0.1);">Close</button>
             </div>
         </div>
     </div>
@@ -287,6 +315,150 @@ producer.close();</code></pre>
             });
         });
 
+        const loadTopics = async () => {
+            const listEl = document.getElementById('topics-list');
+            listEl.innerHTML = '<div style="text-align: center; color: #888;">Loading topics...</div>';
+            try {
+                const res = await fetch('/api/topics', {
+                    headers: { 'Authorization': `Bearer ${currentAccessToken}` }
+                });
+                const data = await res.json();
+                if (data.success) {
+                    listEl.innerHTML = '';
+                    if (data.topics.length === 0) {
+                        listEl.innerHTML = '<div style="text-align: center; color: #888;">No topics found.</div>';
+                    }
+                    data.topics.forEach(topic => {
+                        const div = document.createElement('div');
+                        div.style.display = 'flex';
+                        div.style.justifyContent = 'space-between';
+                        div.style.alignItems = 'center';
+                        div.style.padding = '0.8rem';
+                        div.style.background = 'rgba(255,255,255,0.05)';
+                        div.style.borderRadius = '8px';
+                        
+                        const nameSpan = document.createElement('span');
+                        nameSpan.innerText = topic;
+                        nameSpan.style.fontFamily = 'monospace';
+                        nameSpan.style.color = '#a5d6ff';
+                        
+                        const actionsDiv = document.createElement('div');
+                        actionsDiv.style.display = 'flex';
+                        actionsDiv.style.gap = '0.5rem';
+
+                        const viewBtn = document.createElement('button');
+                        viewBtn.innerText = 'View Data';
+                        viewBtn.className = 'primary-btn';
+                        viewBtn.style.padding = '0.4rem 0.8rem';
+                        viewBtn.style.fontSize = '0.8rem';
+                        viewBtn.onclick = () => viewTopicData(topic);
+
+                        const delBtn = document.createElement('button');
+                        delBtn.innerText = 'Delete';
+                        delBtn.className = 'primary-btn btn-danger';
+                        delBtn.style.padding = '0.4rem 0.8rem';
+                        delBtn.style.fontSize = '0.8rem';
+                        delBtn.onclick = () => deleteTopic(topic);
+
+                        actionsDiv.appendChild(viewBtn);
+                        actionsDiv.appendChild(delBtn);
+
+                        div.appendChild(nameSpan);
+                        div.appendChild(actionsDiv);
+                        listEl.appendChild(div);
+                    });
+                } else {
+                    listEl.innerHTML = `<div style="text-align: center; color: #ff4757;">Failed to load topics: ${data.error}</div>`;
+                }
+            } catch (err) {
+                listEl.innerHTML = '<div style="text-align: center; color: #ff4757;">Failed to load topics.</div>';
+            }
+        };
+
+        const viewTopicData = async (topic) => {
+            const modal = document.getElementById('data-modal');
+            const title = document.getElementById('data-modal-title');
+            const content = document.getElementById('data-modal-content');
+            
+            title.innerText = `Data in ${topic}`;
+            content.innerText = 'Fetching latest messages...\nThis takes ~2 seconds.';
+            modal.classList.add('show');
+
+            try {
+                const res = await fetch(`/api/topics/${topic}/data`, {
+                    headers: { 'Authorization': `Bearer ${currentAccessToken}` }
+                });
+                const data = await res.json();
+                if (data.success) {
+                    if (data.data.length === 0) {
+                        content.innerText = '(No messages found or topic is empty)';
+                    } else {
+                        content.innerText = data.data.join('\n');
+                    }
+                } else {
+                    content.innerText = `Error: ${data.error}`;
+                }
+            } catch (err) {
+                content.innerText = 'Failed to fetch data from the server.';
+            }
+        };
+
+        const deleteTopic = async (topic) => {
+            if (!confirm(`Are you sure you want to delete the topic ${topic}? This will permanently erase all data inside it.`)) return;
+            
+            try {
+                const res = await fetch(`/api/topics/${topic}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${currentAccessToken}` }
+                });
+                const data = await res.json();
+                if (data.success) {
+                    loadTopics();
+                } else {
+                    alert('Failed to delete topic: ' + data.error);
+                }
+            } catch (err) {
+                alert('Server error while deleting topic.');
+            }
+        };
+
+        document.getElementById('create-topic-btn').addEventListener('click', async (e) => {
+            const btn = e.target;
+            const input = document.getElementById('new-topic-name');
+            const suffix = input.value.trim();
+            if (!suffix) return;
+
+            btn.disabled = true;
+            btn.innerText = 'Creating...';
+
+            try {
+                const res = await fetch('/api/topics', {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${currentAccessToken}`
+                    },
+                    body: JSON.stringify({ suffix })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    input.value = '';
+                    loadTopics();
+                } else {
+                    alert('Error creating topic: ' + data.error);
+                }
+            } catch (err) {
+                alert('Server error creating topic.');
+            } finally {
+                btn.disabled = false;
+                btn.innerText = 'Create Topic';
+            }
+        });
+
+        document.getElementById('close-data-modal').addEventListener('click', () => {
+            document.getElementById('data-modal').classList.remove('show');
+        });
+
         const populateDashboard = (data) => {
             document.getElementById('res-username').innerText = data.username;
             document.getElementById('res-password').innerText = data.password;
@@ -315,7 +487,10 @@ producer.close();</code></pre>
             
             const resultCard = document.getElementById('result-card');
             resultCard.style.display = 'block';
-            setTimeout(() => resultCard.classList.remove('hidden'), 50);
+            setTimeout(() => {
+                resultCard.classList.remove('hidden');
+                loadTopics();
+            }, 50);
         };
 
         const loginCard = document.getElementById('login-card');
