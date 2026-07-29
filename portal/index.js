@@ -12,42 +12,42 @@ const rateLimit = require('express-rate-limit');
 const db = require('./db');
 
 const app = express();
-app.set('trust proxy', 1); // Enable proxy trust for Cloudflare
+app.set('trust proxy', true); // Trust Cloudflare and proxy headers
 app.use(cors({ origin: process.env.ALLOWED_ORIGIN || '*' }));
 app.use(express.json({ limit: '16kb' }));  // Express 5 built-in JSON parser
 app.use(express.static('public'));
 
 // ── Rate Limiters ────────────────────────────────────────
-// Tight limit on account creation (heavy: creates Kafka user + topic + ACLs)
 const registerLimiter = rateLimit({
     windowMs: 60 * 60 * 1000,  // 1 hour
     max: 10,
     standardHeaders: true,
     legacyHeaders: false,
+    validate: { xForwardedForHeader: false },
     message: { error: 'Too many registration attempts. Try again in an hour.' }
 });
-// Moderate limit on credential mutation routes
 const mutationLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,  // 15 minutes
     max: 50,
     standardHeaders: true,
     legacyHeaders: false,
+    validate: { xForwardedForHeader: false },
     message: { error: 'Too many requests. Try again in a few minutes.' }
 });
-// General API limit (covers topic reads, produce, consumer groups etc.)
 const apiLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,  // 15 minutes
     max: 200,
     standardHeaders: true,
     legacyHeaders: false,
+    validate: { xForwardedForHeader: false },
     message: { error: 'Too many requests. Please slow down.' }
 });
-// Admin routes limit
 const adminLimiter = rateLimit({
     windowMs: 60 * 1000,       // 1 minute
     max: 30,
     standardHeaders: true,
     legacyHeaders: false,
+    validate: { xForwardedForHeader: false },
     message: { error: 'Admin rate limit exceeded.' }
 });
 // Apply general limiter to all /api routes
