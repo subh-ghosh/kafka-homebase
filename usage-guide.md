@@ -6,7 +6,7 @@ Once your Kafka broker is running on your cloud instance, it is secured using **
 
 To connect to your broker, you will always need these parameters:
 
-- **Bootstrap Server:** `<YOUR_PUBLIC_IP_OR_DOMAIN>:9092`
+- **Bootstrap Server:** `kafka.subartaghosh.co.in:9092`
 - **Security Protocol:** `SASL_SSL`
 - **SASL Mechanism:** `SCRAM-SHA-512`
 - **Username:** `admin` *(or a specific app user created via provision_app.sh)*
@@ -32,7 +32,7 @@ pip install confluent-kafka
 from confluent_kafka import Producer
 
 conf = {
-    'bootstrap.servers': '<YOUR_PUBLIC_IP_OR_DOMAIN>:9092',
+    'bootstrap.servers': 'kafka.subartaghosh.co.in:9092',
     'security.protocol': 'SASL_SSL',
     'sasl.mechanisms': 'SCRAM-SHA-512',
     'sasl.username': 'admin',
@@ -71,7 +71,7 @@ const { Kafka } = require('kafkajs')
 
 const kafka = new Kafka({
   clientId: 'my-app',
-  brokers: ['<YOUR_PUBLIC_IP_OR_DOMAIN>:9092'],
+  brokers: ['kafka.subartaghosh.co.in:9092'],
   ssl: {
     rejectUnauthorized: false // Set to true in prod with proper CA
   },
@@ -118,7 +118,7 @@ Java applications can natively read the `kafka.truststore.p12` file that is gene
 
 **Properties Configuration (`application.properties`):**
 ```properties
-spring.kafka.bootstrap-servers=<YOUR_PUBLIC_IP_OR_DOMAIN>:9092
+spring.kafka.bootstrap-servers=kafka.subartaghosh.co.in:9092
 
 spring.kafka.properties.security.protocol=SASL_SSL
 spring.kafka.properties.sasl.mechanism=SCRAM-SHA-512
@@ -139,21 +139,21 @@ You must pass a `client.properties` file to the tools so they know how to authen
 
 **Create a Topic:**
 ```bash
-kafka-topics.sh --bootstrap-server <YOUR_PUBLIC_IP_OR_DOMAIN>:9092 \
+kafka-topics.sh --bootstrap-server kafka.subartaghosh.co.in:9092 \
   --command-config client.properties \
   --create --topic my-test-topic --partitions 3 --replication-factor 1
 ```
 
 **Produce Messages from CLI:**
 ```bash
-kafka-console-producer.sh --bootstrap-server <YOUR_PUBLIC_IP_OR_DOMAIN>:9092 \
+kafka-console-producer.sh --bootstrap-server kafka.subartaghosh.co.in:9092 \
   --producer.config client.properties \
   --topic my-test-topic
 ```
 
 **Consume Messages from CLI:**
 ```bash
-kafka-console-consumer.sh --bootstrap-server <YOUR_PUBLIC_IP_OR_DOMAIN>:9092 \
+kafka-console-consumer.sh --bootstrap-server kafka.subartaghosh.co.in:9092 \
   --consumer.config client.properties \
   --topic my-test-topic --from-beginning
 ```
