@@ -579,6 +579,7 @@ const getFolderSize = (dirPath) => {
                 size += getFolderSize(filePath);
             } else {
                 size += stats.size;
+            }
         }
     }
     return size;
