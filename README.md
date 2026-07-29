@@ -35,7 +35,7 @@ Detailed steps: see [docs/oracle-ubuntu.md](file:///h:/Kafka/docs/oracle-ubuntu.
 
 ## Folder map
 
-- `docs/usage-guide.md` — **Start here:** code examples for Python, Node, and Java
+- `usage-guide.md` — **Start here:** code examples for Python, Node, and Java
 - `docs/` — step-by-step VM setup
 - `kafka/` — Kafka configs + systemd unit template
 - `scripts/` — install/bootstrap/provision scripts
