@@ -23,10 +23,10 @@ if (!fs.existsSync(DB_FILE)) {
     fs.writeFileSync(DB_FILE, JSON.stringify({ total_users: 0, users: [] }));
 }
 
-// IP Rate Limiter: Max 3 requests per IP per 24 hours
+// IP Rate Limiter: Max 1 request per IP per 24 hours
 const ipLimiter = rateLimit({
     windowMs: 24 * 60 * 60 * 1000, // 24 hrs
-    max: 3, // 3 accounts per IP per day
+    max: 1, // 1 account per IP per day
     message: { error: 'You have reached the maximum number of accounts you can create today. Please try again tomorrow.' },
     standardHeaders: true,
     legacyHeaders: false,
