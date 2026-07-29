@@ -464,7 +464,7 @@ app.get('/api/topics/:topic/data', async (req, res) => {
             const timer = setTimeout(async () => {
                 try { await consumer.disconnect(); } catch (e) {}
                 resolve();
-            }, 3000);
+            }, 4500);
 
             consumer.run({
                 eachMessage: async ({ message }) => {
