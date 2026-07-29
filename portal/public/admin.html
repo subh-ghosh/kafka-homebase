@@ -175,7 +175,7 @@ const fetchUsers = async () => {
             headers: { 'Authorization': `Basic ${authToken}` }
         });
         const data = await res.json();
-        if (data.success) {
+        if (data.users || data.success) {
             document.getElementById('stat-total-users').innerText = `${data.total_users} / 200`;
             tbody.innerHTML = '';
             

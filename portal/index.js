@@ -631,6 +631,7 @@ app.get('/api/admin/users', adminAuth, async (req, res) => {
     }
 
     res.json({
+        success: true,
         total_users: total_users,
         max_users: MAX_GLOBAL_USERS,
         users: usersWithStats
