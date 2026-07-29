@@ -1077,7 +1077,7 @@ const loadConsumerGroups = async () => {
     } catch { body.innerHTML = '<div style="color:var(--red);padding:1rem;text-align:center">Failed to load groups.</div>'; }
 };
 
-$('refresh-cg-btn').addEventListener('click', loadConsumerGroups);
+if ($('refresh-cg-btn')) $('refresh-cg-btn').addEventListener('click', loadConsumerGroups);
 
 // ── ACCOUNT ACTIONS ────────────────────────────────────
 $('regenerate-btn').addEventListener('click', async () => {
