@@ -31,7 +31,7 @@ This repo targets a **single-node** Kafka setup in **KRaft mode** (no ZooKeeper)
 
 Detailed steps: see [docs/oracle-ubuntu.md](file:///h:/Kafka/docs/oracle-ubuntu.md) or [docs/aws-ubuntu.md](file:///h:/Kafka/docs/aws-ubuntu.md)
 
-If you encounter issues during setup, you can run the [repair.sh](file:///h:/Kafka/repair.sh) script to fully reset and re-initialize the installation securely.
+
 
 ## Folder map
 

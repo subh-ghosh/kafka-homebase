@@ -84,12 +84,6 @@ sudo bash scripts/provision_app.sh \
 - Keep `auto.create.topics.enable=false` (prevents abuse).
 - Use topic prefixes per app (`app1.*`) and ACLs.
 
-## Troubleshooting
 
-If you ever need to completely reset the Kafka installation (e.g., if you messed up a password or SSL certificates), you can run the `repair.sh` script in the root of this repo. It will stop Kafka, wipe the storage, apply the updated configs, and rebuild the security setup from scratch:
-
-```bash
-sudo bash repair.sh
-```
 
 - For higher reliability you need multiple brokers (not free).
