@@ -105,8 +105,14 @@ const TOKEN_TTL = 5 * 60 * 1000;
 const VALID_USERNAME_RE = /^user_[a-f0-9]{8}$/;
 const isValidUsername = (u) => VALID_USERNAME_RE.test(u);
 
-const generatePassword = (length) => {
-    return crypto.randomBytes(length).toString('base64').replace(/[^a-zA-Z0-9]/g, '').substring(0, length) + "!";
+const generatePassword = (length = 16) => {
+    const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    const bytes = crypto.randomBytes(length);
+    let res = '';
+    for (let i = 0; i < length; i++) {
+        res += chars[bytes[i] % chars.length];
+    }
+    return res + '!';
 };
 
 const sanitizeGithubUsername = async (handle) => {
@@ -300,32 +306,20 @@ app.post('/api/register', registerLimiter, async (req, res) => {
 
 // Regenerate Credentials
 app.post('/api/regenerate', mutationLimiter, async (req, res) => {
-    const { accessToken } = req.body;
-    if (!accessToken) return res.status(400).json({ error: 'Missing access token.' });
-
-    let githubId = null;
-    try {
-        const userRes = await axios.get('https://api.github.com/user', { headers: { Authorization: `Bearer ${accessToken}` } });
-        githubId = userRes.data.id.toString();
-    } catch (err) {
-        return res.status(500).json({ error: 'GitHub profile failed' });
-    }
-
-    const foundData = await db.getUserByGithubId(githubId);
-    if (!foundData) return res.status(404).json({ error: 'User not found.' });
+    const username = await verifyUserHelper(req, res);
+    if (!username) return;
 
     const newPassword = generatePassword(16);
-    const foundUser = foundData.username;
 
     try {
         await shellQueue.add(async () => {
             const adminProps = '/etc/kafka/admin.properties';
             if (fs.existsSync('/opt/kafka/bin/kafka-configs.sh')) {
-                await runCommand(`/opt/kafka/bin/kafka-configs.sh --bootstrap-server broker.subartaghosh.co.in:9092 --command-config ${adminProps} --alter --add-config "SCRAM-SHA-512=[iterations=4096,password=${newPassword}]" --entity-type users --entity-name ${foundUser}`);
+                await runCommand(`/opt/kafka/bin/kafka-configs.sh --bootstrap-server broker.subartaghosh.co.in:9092 --command-config ${adminProps} --alter --add-config 'SCRAM-SHA-512=[iterations=4096,password=${newPassword}]' --entity-type users --entity-name ${username}`);
             }
         });
 
-        await db.updateUpdatedAt(foundUser);
+        await db.updateUpdatedAt(username);
         res.json({ success: true, password: newPassword });
     } catch (err) {
         console.error("Failed to regenerate password:", err);
@@ -335,26 +329,14 @@ app.post('/api/regenerate', mutationLimiter, async (req, res) => {
 
 // Delete Account
 app.post('/api/delete_account', mutationLimiter, async (req, res) => {
-    const { accessToken } = req.body;
-    if (!accessToken) return res.status(400).json({ error: 'Missing access token.' });
-
-    let githubId = null;
-    try {
-        const userRes = await axios.get('https://api.github.com/user', { headers: { Authorization: `Bearer ${accessToken}` } });
-        githubId = userRes.data.id.toString();
-    } catch (err) {
-        return res.status(500).json({ error: 'GitHub profile failed' });
-    }
-
-    const foundData = await db.getUserByGithubId(githubId);
-    if (!foundData) return res.status(404).json({ error: 'User not found.' });
-    const foundUser = foundData.username;
+    const username = await verifyUserHelper(req, res);
+    if (!username) return;
 
     try {
         // Delete ALL user-owned topics (not just .events) via native Kafka API
         const admin = await getAdmin();
         const allTopics = await admin.listTopics();
-        const userTopics = allTopics.filter(t => t.startsWith(`${foundUser}.`));
+        const userTopics = allTopics.filter(t => t.startsWith(`${username}.`));
         if (userTopics.length > 0) {
             await admin.deleteTopics({ topics: userTopics });
         }
@@ -363,17 +345,17 @@ app.post('/api/delete_account', mutationLimiter, async (req, res) => {
         await shellQueue.add(async () => {
             const adminProps = '/etc/kafka/admin.properties';
             if (fs.existsSync('/opt/kafka/bin/kafka-configs.sh')) {
-                await safeRunCommand(`/opt/kafka/bin/kafka-configs.sh --bootstrap-server broker.subartaghosh.co.in:9092 --command-config ${adminProps} --alter --delete-config "SCRAM-SHA-512" --entity-type users --entity-name ${foundUser}`);
-                await safeRunCommand(`/opt/kafka/bin/kafka-acls.sh --bootstrap-server broker.subartaghosh.co.in:9092 --command-config ${adminProps} --remove --allow-principal "User:${foundUser}" --operation Read --operation Write --operation Describe --operation Create --topic "${foundUser}." --resource-pattern-type prefixed --force`);
-                await safeRunCommand(`/opt/kafka/bin/kafka-acls.sh --bootstrap-server broker.subartaghosh.co.in:9092 --command-config ${adminProps} --remove --allow-principal "User:${foundUser}" --operation Read --operation Describe --group "${foundUser}" --resource-pattern-type prefixed --force`);
+                await safeRunCommand(`/opt/kafka/bin/kafka-configs.sh --bootstrap-server broker.subartaghosh.co.in:9092 --command-config ${adminProps} --alter --delete-config 'SCRAM-SHA-512' --entity-type users --entity-name ${username}`);
+                await safeRunCommand(`/opt/kafka/bin/kafka-acls.sh --bootstrap-server broker.subartaghosh.co.in:9092 --command-config ${adminProps} --remove --allow-principal "User:${username}" --operation Read --operation Write --operation Describe --operation Create --topic "${username}." --resource-pattern-type prefixed --force`);
+                await safeRunCommand(`/opt/kafka/bin/kafka-acls.sh --bootstrap-server broker.subartaghosh.co.in:9092 --command-config ${adminProps} --remove --allow-principal "User:${username}" --operation Read --operation Describe --group "${username}" --resource-pattern-type prefixed --force`);
             }
         });
 
-        await db.deleteUser(foundUser);
+        await db.deleteUser(username);
         res.json({ success: true });
     } catch (err) {
-        console.error('Failed to delete account:', err);
-        res.status(500).json({ error: 'Failed to delete account from Kafka.' });
+        console.error("Failed to delete account:", err);
+        res.status(500).json({ error: 'Failed to delete account resources' });
     }
 });
 

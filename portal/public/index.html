@@ -1087,7 +1087,10 @@ $('regenerate-btn').addEventListener('click', async () => {
     try {
         const res  = await fetch('/api/regenerate', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${currentAccessToken}`
+            },
             body: JSON.stringify({ accessToken: currentAccessToken })
         });
         const data = await res.json();
@@ -1107,7 +1110,10 @@ $('delete-btn').addEventListener('click', async () => {
     try {
         const res  = await fetch('/api/delete_account', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${currentAccessToken}`
+            },
             body: JSON.stringify({ accessToken: currentAccessToken })
         });
         const data = await res.json();
