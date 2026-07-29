@@ -1,6 +1,5 @@
 const express = require('express');
 const cors = require('cors');
-const bodyParser = require('body-parser');
 const { exec } = require('child_process');
 const crypto = require('crypto');
 const fs = require('fs');
@@ -15,7 +14,7 @@ const db = require('./db');
 const app = express();
 app.set('trust proxy', 1); // Enable proxy trust for Cloudflare
 app.use(cors({ origin: process.env.ALLOWED_ORIGIN || '*' }));
-app.use(bodyParser.json({ limit: '16kb' }));
+app.use(express.json({ limit: '16kb' }));  // Express 5 built-in JSON parser
 app.use(express.static('public'));
 
 // ── Rate Limiters ────────────────────────────────────────
