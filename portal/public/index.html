@@ -850,10 +850,12 @@ const showDashboard = (data) => {
 
     // Nav
     $('nav-right').innerHTML = `
-        <button onclick="showHome()" class="btn btn-sm" style="margin-right:0.4rem;">🏠 Home</button>
-        <button onclick="showDashboardView()" class="btn btn-sm btn-yellow" style="margin-right:0.6rem;">📊 Dashboard</button>
-        <span class="nav-user">${data.username}</span>
-        <button onclick="logout()" class="btn btn-sm btn-red" style="box-shadow:3px 3px 0 #8B0000;margin-left:0.5rem;">Logout</button>
+        <span class="nav-user" style="margin-right:0.75rem;">${data.username}</span>
+        <div style="display:inline-flex; gap:0.4rem; align-items:center;">
+            <button onclick="showHome()" class="btn btn-sm">🏠 Home</button>
+            <button onclick="showDashboardView()" class="btn btn-sm btn-yellow">📊 Dashboard</button>
+            <button onclick="logout()" class="btn btn-sm btn-red" style="box-shadow:3px 3px 0 #8B0000;">Logout</button>
+        </div>
     `;
 
     // Credentials
