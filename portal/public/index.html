@@ -465,17 +465,6 @@
                     </div>
                 </div>
 
-                <div class="cred-row">
-                    <div class="label">Allowed Prefix (Topics & Groups)</div>
-                    <div class="cred-value" style="background:#FFF9C4;">
-                        <span class="cred-text" id="cred-prefix" style="font-weight:700;">—</span>
-                        <button class="copy-btn" title="Copy Prefix" onclick="copyText(document.getElementById('cred-prefix').innerText,this)">📋</button>
-                    </div>
-                    <div style="font-size:0.72rem;color:#444;margin-top:0.3rem;line-height:1.4">
-                        💡 <strong>Naming Rule:</strong> All your custom topics & consumer groups MUST start with this prefix (e.g. <code id="prefix-rule-code" style="font-family:var(--mono);font-weight:700">user.topic</code>).
-                    </div>
-                </div>
-
                 <!-- Storage bar -->
                 <div class="storage-wrap">
                     <div class="storage-meta">
@@ -921,8 +910,6 @@ const showDashboard = (data) => {
     // Credentials
     $('cred-username').innerText = data.username;
     $('cred-topic').innerText    = data.topic;
-    if ($('cred-prefix')) $('cred-prefix').innerText = data.username + '.';
-    if ($('prefix-rule-code')) $('prefix-rule-code').innerText = data.username + '.my-topic';
     if ($('topic-prefix-label')) $('topic-prefix-label').innerText = data.username + '.';
 
     // Storage
