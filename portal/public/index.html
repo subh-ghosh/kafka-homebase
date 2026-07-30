@@ -704,14 +704,15 @@ const closeModal = id => {
 // ── CODE SNIPPETS ──────────────────────────────────────
 const buildSnippets = (username, topic) => {
     $('snippet-python').innerText =
-`from kafka import KafkaConsumer, KafkaProducer
+`# Note: All topics & consumer groups must start with '${username}.'
+from kafka import KafkaConsumer, KafkaProducer
 import ssl
 
 ssl_ctx = ssl.create_default_context()
 
 # Consumer
 consumer = KafkaConsumer(
-    '${topic}',
+    '${topic}',  # Custom topic example: '${username}.my-topic'
     bootstrap_servers='${BROKER}',
     security_protocol='SASL_SSL',
     sasl_mechanism='SCRAM-SHA-512',
@@ -719,16 +720,17 @@ consumer = KafkaConsumer(
     sasl_plain_password='YOUR_PASSWORD',
     ssl_context=ssl_ctx,
     auto_offset_reset='earliest',
-    group_id='${username}-group',
+    group_id='${username}.my-group',
 )
 for msg in consumer:
     print(msg.value.decode())`;
 
     $('snippet-node').innerText =
-`const { Kafka } = require('kafkajs');
+`// Note: All topics & consumer groups must start with '${username}.'
+const { Kafka } = require('kafkajs');
 
 const kafka = new Kafka({
-  clientId: '${username}-app',
+  clientId: '${username}.app',
   brokers: ['${BROKER}'],
   ssl: true,
   sasl: {
@@ -738,9 +740,9 @@ const kafka = new Kafka({
   },
 });
 
-const consumer = kafka.consumer({ groupId: '${username}-group' });
+const consumer = kafka.consumer({ groupId: '${username}.my-group' });
 await consumer.connect();
-await consumer.subscribe({ topic: '${topic}', fromBeginning: true });
+await consumer.subscribe({ topic: '${topic}', fromBeginning: true }); // Custom topics: '${username}.my-topic'
 await consumer.run({
   eachMessage: async ({ message }) => {
     console.log(message.value.toString());
@@ -749,21 +751,25 @@ await consumer.run({
 
     $('snippet-java').innerText =
 `# application.properties (Spring Kafka / Boot)
+# Note: All topics & consumer groups must start with '${username}.'
 spring.kafka.bootstrap-servers=${BROKER}
 spring.kafka.security.protocol=SASL_SSL
 spring.kafka.properties.sasl.mechanism=SCRAM-SHA-512
 spring.kafka.properties.sasl.jaas.config=\\
   org.apache.kafka.common.security.scram.ScramLoginModule \\
   required username="${username}" password="YOUR_PASSWORD";
-spring.kafka.consumer.group-id=${username}-group
+
+spring.kafka.consumer.group-id=${username}.my-group
 spring.kafka.consumer.auto-offset-reset=earliest
-spring.kafka.consumer.key-deserializer=\\
-  org.apache.kafka.common.serialization.StringDeserializer
-spring.kafka.consumer.value-deserializer=\\
-  org.apache.kafka.common.serialization.StringDeserializer`;
+spring.kafka.consumer.key-deserializer=org.apache.kafka.common.serialization.StringDeserializer
+spring.kafka.consumer.value-deserializer=org.apache.kafka.common.serialization.StringDeserializer
+
+# Java Code Example:
+# @KafkaListener(topics = "${username}.my-topic", groupId = "${username}.my-group")`;
 
     $('snippet-cli').innerText =
-`# 1. Create client.properties
+`# Note: All topics & consumer groups must start with '${username}.'
+# 1. Create client.properties
 cat > client.properties << EOF
 security.protocol=SASL_SSL
 sasl.mechanism=SCRAM-SHA-512
@@ -776,6 +782,7 @@ kafka-console-consumer.sh \\
   --bootstrap-server ${BROKER} \\
   --consumer.config client.properties \\
   --topic ${topic} \\
+  --group ${username}.my-group \\
   --from-beginning
 
 # 3. Produce a test message
