@@ -18,7 +18,19 @@ app.set('trust proxy', true); // Trust Cloudflare and proxy headers
 // Gzip compress all responses — reduces transfer size by 60-80% for JSON/HTML
 app.use(compression({ level: 6, threshold: 512 }));
 
-app.use(cors({ origin: process.env.ALLOWED_ORIGIN || '*' }));
+app.use(cors({
+    origin: (origin, cb) => {
+        const allowed = [
+            'https://streambase.subartaghosh.co.in',
+            'http://localhost:3000',
+            'http://localhost:8080'
+        ];
+        // Allow non-browser clients (curl, Postman, server-to-server) and listed origins
+        if (!origin || allowed.includes(origin)) return cb(null, true);
+        cb(new Error('CORS: origin not allowed'));
+    },
+    credentials: true
+}));
 app.use(express.json({ limit: '16kb' }));  // Express 5 built-in JSON parser
 
 // Static files with ETags and 1-hour browser caching
