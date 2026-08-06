@@ -1,7 +1,7 @@
-# ⚡ StreamBase — Free Kafka-Compatible Message Broker for Students & Developers
+# ⚡ StreamBase — Free Managed Kafka Platform for Students & Developers
 
 <p align="center">
-  <strong>Production-Grade, SASL/SSL-Secured Managed Apache Kafka® Infrastructure for Learning & Building.</strong>
+  <strong>Production-Grade, SASL/SSL-Secured Multi-Tenant Apache Kafka® Infrastructure.</strong>
 </p>
 
 <p align="center">
@@ -9,38 +9,60 @@
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-FFE500?style=for-the-badge&logo=open-source-initiative&logoColor=black" /></a>
   <img src="https://img.shields.io/badge/Status-Production_Live-1DB954?style=for-the-badge&logo=statuspage&logoColor=white" />
   <img src="https://img.shields.io/badge/Architecture-KRaft_Mode-0055FF?style=for-the-badge&logo=docker&logoColor=white" />
+  <img src="https://img.shields.io/badge/npm_audit-0_vulnerabilities-00C853?style=for-the-badge&logo=snyk&logoColor=white" />
 </p>
 
 ---
 
 ## 🚀 What is StreamBase?
 
-**StreamBase** is an open-source, multi-tenant Kafka cloud platform engineered to eliminate the expensive $50+/month cost barriers of commercial cloud brokers (such as Confluent Cloud or AWS MSK) for students, educators, open-source contributors, and independent developers.
+**StreamBase** is an open-source, multi-tenant Kafka cloud platform that eliminates the $50+/month cost barrier of commercial brokers (Confluent Cloud, AWS MSK) for students and developers.
 
-With **StreamBase**, developers authenticate via GitHub OAuth and instantly receive:
-- 🔐 **Dedicated SASL/SSL Kafka Credentials** (`SCRAM-SHA-512` encryption on Port 9092)
-- 📦 **3-Partition Custom Topics** scoped under their GitHub handle (`<github-handle>.events`)
-- ⚡ **1-Click Quick Connect Code Snippets** for Python, Node.js, Java, and CLI
-- 📊 **Real-time Web Management Dashboard** featuring storage quota meters (125 MB), consumer group monitoring, and interactive produce/consume stream viewers
-- 🛡 **Multi-Tenant Isolation** with ACL principal enforcement and bandwidth rate-limiting (1 MB/sec producer/consumer throttling)
+Developers authenticate via GitHub OAuth and instantly receive isolated, production-grade Kafka credentials — no credit card, no manual setup required.
+
+---
+
+## 📊 Measured Production Performance
+
+All metrics measured against the live production endpoint (`streambase.subartaghosh.co.in`) over HTTPS:
+
+| Endpoint | avg | p50 | p95 |
+|---|---|---|---|
+| `GET /api/config` | **230ms** | 229ms | 243ms |
+| `GET /` (landing page) | **330ms** | 268ms | 892ms |
+| Auth rejection (`/api/user`, no token) | **229ms** | 228ms | 233ms |
+| 20 concurrent burst (`/api/config`) | **100% success** in 1,074ms total | avg 641ms | p95 1,066ms |
+
+> Optimized via gzip compression (level 6), `Cache-Control` headers (`s-maxage=300` Cloudflare edge cache), and ETag-based static file caching — reducing API latency **66%** (682ms → 230ms avg) and landing page load **77%** (1,461ms → 330ms avg).
 
 ---
 
 ## ✨ Features
 
-- **Zero Credit Card Required**: Instant onboarding via GitHub OAuth.
-- **Production Encryption**: Full `SASL_SSL` connection protocol using `SCRAM-SHA-512` authentication.
-- **3-Partition Topics**: Real distributed topic partition support out of the box.
-- **Live Stream Inspector**: Read and inspect live messages directly from the web portal.
-- **Interactive Producer**: Send test JSON or string messages to your topics straight from the web UI.
-- **Storage & Quota Management**: Built-in automated retention and disk quota monitoring.
-- **Neo-Brutalist UI**: High-contrast, responsive interface built with modern web aesthetics.
+- **Zero Credit Card Required** — Instant onboarding via GitHub OAuth
+- **Production Encryption** — `SASL_SSL` + `SCRAM-SHA-512` authentication on Port 9092
+- **Multi-Tenant ACL Isolation** — Per-user Kafka principal scoping; no cross-tenant data access possible
+- **Bandwidth Throttling** — 1 MB/sec producer + consumer quota per tenant via `kafka-configs.sh` dynamic overrides
+- **Storage Quota Enforcement** — 125 MB cap per user with automated ACL write-revocation on breach, restored on recovery
+- **3-Partition Topics** — Real distributed partition support out of the box
+- **Live Stream Inspector** — Read and inspect live Kafka messages directly from the browser
+- **Interactive Producer** — Send test JSON or string messages to topics from the web UI
+- **Multi-Layer Rate Limiting** — 10 registrations/hr · 50 mutations/15min · 200 reads/15min · 30 admin/min
+
+---
+
+## 🛡 Security
+
+- **0 npm vulnerabilities** (`npm audit` clean)
+- **CORS locked** to `https://streambase.subartaghosh.co.in` — no wildcard `*` origin
+- **5-minute GitHub token cache** — prevents GitHub API rate-limit exhaustion on repeated requests
+- **Shell injection prevention** — all usernames validated against `/^user_[a-f0-9]{8}$/` before any `kafka-*.sh` invocation
+- **Admin routes** protected by HTTP Basic Auth with a dedicated rate limiter (30 req/min)
+- **Cloudflare TLS proxy** — EC2 instance not directly exposed to the internet
 
 ---
 
 ## 🏗 System Architecture
-
-StreamBase is built as a decoupled, high-performance distributed streaming control plane:
 
 ```
                   ┌─────────────────────────────────────────┐
@@ -52,37 +74,39 @@ StreamBase is built as a decoupled, high-performance distributed streaming contr
                                        │
                   ┌────────────────────▼────────────────────┐
                   │    Express Control Plane & API Engine   │
-                  │  (Rate-Limiting, DB, ACL Provisioner)  │
+                  │  gzip · Rate-Limiting · SQLite · ACLs  │
                   └────────────────────┬────────────────────┘
                                        │
-                               Port 9094 (Internal)
+                               Port 9094 (Internal PLAINTEXT)
                                        │
 ┌──────────────────────────────────────▼──────────────────────────────────────┐
 │                            Apache Kafka® Broker                             │
-│                  SASL/SSL Encrypted Endpoint (Port 9092)                    │
-│            scram-sha-512 · ACL Enforced · 3-Partition Default Topics         │
+│                  SASL/SSL Encrypted Public Endpoint (Port 9092)             │
+│            SCRAM-SHA-512 · ACL Enforced · 3-Partition Default Topics        │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ### Core Tech Stack
-- **Streaming Core**: Native Apache Kafka 3.7+ running in **KRaft mode** (ZooKeeper-less).
-- **Security Protocols**: `SASL_SSL` encryption with `SCRAM-SHA-512` authentication & ACL principal scoping.
-- **Control Plane Engine**: Node.js, Express, SQLite (`db.sqlite`), Async Execution Queue (`p-queue`).
-- **Frontend Architecture**: Neo-Brutalist UI system (Space Grotesk, DM Mono, CSS Design Tokens).
-- **Production Host**: AWS EC2 instance, systemd service management, Cloudflare TLS proxy.
+
+| Layer | Technology |
+|---|---|
+| Streaming Core | Apache Kafka 3.7+ in **KRaft mode** (ZooKeeper-free) |
+| Security | `SASL_SSL` + `SCRAM-SHA-512` + per-principal ACL scoping |
+| Control Plane | Node.js · Express · SQLite · `p-queue` (concurrency-safe shell operations) |
+| Performance | `compression` middleware (gzip level 6) · Cloudflare edge caching |
+| Infrastructure | AWS EC2 · systemd service · Cloudflare TLS reverse proxy |
 
 ---
 
-## 💻 Quick Connect Code Snippets
+## 💻 Quick Connect
 
-### 🐍 Python (`kafka-python` / `confluent-kafka`)
+### 🐍 Python (`kafka-python`)
 ```python
-from kafka import KafkaConsumer, KafkaProducer
+from kafka import KafkaConsumer
 import ssl
 
 ssl_ctx = ssl.create_default_context()
 
-# Consumer Example
 consumer = KafkaConsumer(
     'your-github-username.events',
     bootstrap_servers='broker.subartaghosh.co.in:9092',
@@ -124,19 +148,15 @@ await producer.send({
 
 ---
 
-## 🔧 Self-Hosting & Deployment Guide
+## 🔧 Self-Hosting
 
-To deploy your own instance of **StreamBase** on an Ubuntu EC2 or Linux VM:
-
-### 1. Clone & Set Up Environment
 ```bash
 git clone https://github.com/subh-ghosh/kafka-homebase.git
 cd kafka-homebase/portal
 npm install
 ```
 
-### 2. Configure Environment Variables
-Create a systemd unit or `.env` file with:
+Required environment variables:
 ```env
 PORT=80
 GITHUB_CLIENT_ID=your_github_oauth_client_id
@@ -145,29 +165,44 @@ ADMIN_USER=admin
 ADMIN_PASS=your_secure_admin_password
 ```
 
-### 3. Start Control Plane Service
 ```bash
 node index.js
 ```
 
 ---
 
-## 📂 Repository Structure
+## 🧪 Running the Test Suite
 
-- `portal/` — Node.js Express API control plane, SQLite database layer, and frontend web portal (`index.html`, `admin.html`).
-- `kafka/` — Kafka broker configuration files (`server.properties`, systemd unit templates).
-- `scripts/` — Automated installation, KRaft initialization, cert generation, and user provisioning scripts.
-- `docs/` — Comprehensive cloud deployment guides (AWS EC2 & Oracle Cloud Ubuntu).
-- `examples/` — Minimal runnable producer/consumer scripts for Python, Node.js, and Java.
+```bash
+cd portal
+GITHUB_TOKEN=your_gho_token ADMIN_PASS=your_admin_pass node loadtest.js
+```
+
+Tests cover: public routes, GitHub OAuth token validation, topic CRUD, message produce/consume, account management, and admin endpoints.
 
 ---
 
-## ⚖️ Legal & Trademark Notice
+## 📂 Repository Structure
 
-*Apache®, Apache Kafka®, Kafka®, and the Kafka logo are registered trademarks of The Apache Software Foundation in the United States and/or other countries. StreamBase is not affiliated with, endorsed by, or sponsored by The Apache Software Foundation.*
+| Path | Description |
+|---|---|
+| `portal/index.js` | Node.js Express control plane — API routes, auth, ACL provisioning |
+| `portal/db.js` | SQLite database layer |
+| `portal/public/` | Frontend portal (HTML/CSS/JS, served by Express) |
+| `portal/loadtest.js` | Full API endpoint test suite |
+| `kafka/` | Kafka broker configuration (`server.properties`, systemd templates) |
+| `scripts/` | KRaft init, TLS cert generation, user provisioning automation |
+| `docs/` | AWS EC2 & Oracle Cloud deployment guides |
+| `examples/` | Minimal producer/consumer scripts for Python, Node.js, Java |
+
+---
+
+## ⚖️ Legal
+
+*Apache®, Apache Kafka®, and Kafka® are registered trademarks of The Apache Software Foundation. StreamBase is not affiliated with, endorsed by, or sponsored by The Apache Software Foundation.*
 
 ---
 
 ## 📜 License
 
-Distributed under the **MIT License**. See [`LICENSE`](file:///h:/Kafka/LICENSE) for details.
+Distributed under the **MIT License**. See [`LICENSE`](LICENSE) for details.
