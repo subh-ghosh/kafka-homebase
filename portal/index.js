@@ -1,4 +1,5 @@
 const express = require('express');
+const compression = require('compression');
 const cors = require('cors');
 const { exec } = require('child_process');
 const crypto = require('crypto');
@@ -13,9 +14,22 @@ const db = require('./db');
 
 const app = express();
 app.set('trust proxy', true); // Trust Cloudflare and proxy headers
+
+// Gzip compress all responses — reduces transfer size by 60-80% for JSON/HTML
+app.use(compression({ level: 6, threshold: 512 }));
+
 app.use(cors({ origin: process.env.ALLOWED_ORIGIN || '*' }));
 app.use(express.json({ limit: '16kb' }));  // Express 5 built-in JSON parser
-app.use(express.static('public'));
+
+// Static files with ETags and 1-hour browser caching
+app.use(express.static('public', {
+    etag: true,
+    lastModified: true,
+    maxAge: '1h',
+    setHeaders: (res) => {
+        res.setHeader('Vary', 'Accept-Encoding');
+    }
+}));
 
 // ── Rate Limiters ────────────────────────────────────────
 const registerLimiter = rateLimit({
@@ -123,7 +137,11 @@ const sanitizeGithubUsername = async (handle) => {
     return `${clean}_${crypto.randomBytes(2).toString('hex')}`;
 };
 
+// /api/config is static — client ID never changes at runtime
+// Cache at Cloudflare edge for 5 minutes, browser for 2 minutes
 app.get('/api/config', (req, res) => {
+    res.setHeader('Cache-Control', 'public, max-age=120, s-maxage=300');
+    res.setHeader('Vary', 'Accept-Encoding');
     res.json({ clientId: GITHUB_CLIENT_ID });
 });
 
